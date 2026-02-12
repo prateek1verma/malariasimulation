@@ -86,7 +86,7 @@ create_variables <- function(parameters) {
     if (!is.null(parameters$init_EIR)) {
       if(parameters$parasite == "falciparum"){
         eq <- list(
-          malariaEquilibrium::human_equilibrium_no_het(
+          malariaEquilibriumGD::human_equilibrium_no_het(
             parameters$init_EIR,
             sum(get_treatment_coverages(parameters, 0)),
             parameters$eq_params,
@@ -509,7 +509,7 @@ calculate_eq <- function(het_nodes, parameters) {
     lapply(
       het_nodes,
       function(n) {
-        malariaEquilibrium::human_equilibrium_no_het(
+        malariaEquilibriumGD::human_equilibrium_no_het(
           parameters$init_EIR * calculate_zeta(n, parameters),
           ft,
           parameters$eq_params,

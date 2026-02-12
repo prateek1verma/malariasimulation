@@ -1,7 +1,7 @@
-[![R build status](https://github.com/mrc-ide/malariasimulation/workflows/R-CMD-check/badge.svg)](https://github.com/mrc-ide/malariasimulation/actions)
-[![codecov](https://codecov.io/github/mrc-ide/malariasimulation/branch/master/graphs/badge.svg)](https://codecov.io/github/mrc-ide/malariasimulation)
+[![R build status](https://github.com/mrc-ide/malariasimulationGD/workflows/R-CMD-check/badge.svg)](https://github.com/mrc-ide/malariasimulationGD/actions)
+[![codecov](https://codecov.io/github/mrc-ide/malariasimulationGD/branch/master/graphs/badge.svg)](https://codecov.io/github/mrc-ide/malariasimulationGD)
 
-# malariasimulation <img src="man/figures/malariasimulation.png" align="right" width=30% height=30% />
+# malariasimulationGD <img src="man/figures/malariasimulationGD.png" align="right" width=30% height=30% />
 
 Imperial College London's next malaria simulation. The main goals are make an
 extensible, maintainable and fast simulation to evaluate and report on malaria
@@ -13,7 +13,7 @@ the [individual](https://github.com/mrc-ide/individual) package.
 
 ## Installation
 
-Please note, malariasimulation is only compatible with R >= 4.0.0
+Please note, malariasimulationGD is only compatible with R >= 4.0.0
 
 You can install the binary package on Windows and Mac using the following
 command:
@@ -25,7 +25,7 @@ options(repos = c(
     CRAN = 'https://cloud.r-project.org'))
 
 # Install some packages
-install.packages('malariasimulation')
+install.packages('malariasimulationGD')
 ```
 
 The package can also be installed from github using the "remotes" library. Note, this
@@ -33,7 +33,7 @@ method requires [RBuildTools](https://cran.r-project.org/bin/windows/Rtools/)
 
 ```R
 library('remotes')
-install_github('mrc-ide/malariasimulation')
+install_github('mrc-ide/malariasimulationGD')
 ```
 
 For development it is most convenient to run the code from source. You can
@@ -59,12 +59,12 @@ To run the malaria simulation with the default parameters for 100 timesteps, you
 can execute the following code:
 
 ```R
-library('malariasimulation')
+library('malariasimulationGD')
 
 output <- run_simulation(100)
 ```
 
-Please see [vignettes](https://mrc-ide.github.io/malariasimulation/articles/Model.html) for more detailed use.
+Please see [vignettes](https://mrc-ide.github.io/malariasimulationGD/articles/Model.html) for more detailed use.
 
 ## Code organisation
 

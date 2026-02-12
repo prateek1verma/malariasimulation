@@ -1,5 +1,5 @@
 test_that('default params can be translated to equilibrium', {
-  malariaEquilibrium::human_equilibrium(
+  malariaEquilibriumGD::human_equilibrium(
     5,
     0,
     translate_parameters(get_parameters()),

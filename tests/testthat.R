@@ -1,4 +1,4 @@
 library(testthat)
-library(malariasimulation)
+library(malariasimulationGD)
 
-test_check("malariasimulation")
+test_check("malariasimulationGD")

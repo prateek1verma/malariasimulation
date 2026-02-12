@@ -18,13 +18,13 @@ knitr::opts_chunk$set(
 
 ```{r setup}
 # Load the requisite packages:
-library(malariasimulation)
-library(malariaEquilibrium)
+library(malariasimulationGD)
+library(malariaEquilibriumGD)
 # Set colour palette:
 cols <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 ```
 
-Indoor Residual Spraying (IRS) involves periodically treating indoor walls with insecticides to eliminate adult female mosquitoes that rest indoors. `malariasimulation` can be used to investigate the effect of malaria control strategies that deploy IRS. Users can set IRS in the model using the `set_spraying()` function to parameterise the time and coverage of spraying campaigns. 
+Indoor Residual Spraying (IRS) involves periodically treating indoor walls with insecticides to eliminate adult female mosquitoes that rest indoors. `malariasimulationGD` can be used to investigate the effect of malaria control strategies that deploy IRS. Users can set IRS in the model using the `set_spraying()` function to parameterise the time and coverage of spraying campaigns. 
 
 We will create a few plotting functions to visualise the output.
 ```{r}
@@ -76,7 +76,7 @@ output_control <- run_simulation(timesteps = sim_length, parameters = simparams)
 ```
 
 #### A note on mosquito species  
-It is also possible to use the `set_species()` function to account for 3 different mosquito species in the simulation. In this case, the matrices would need to have additional column corresponding to each mosquito species. For example, if we specified that there were 3 species of mosquitoes in the model and nets were distributed at two timesteps, then the matrices would have 2 rows and 3 columns. If you are not already familiar with the `set_species()` function, see the [Mosquito Species](https://mrc-ide.github.io/malariasimulation/articles/SetSpecies.html) vignette.  
+It is also possible to use the `set_species()` function to account for 3 different mosquito species in the simulation. In this case, the matrices would need to have additional column corresponding to each mosquito species. For example, if we specified that there were 3 species of mosquitoes in the model and nets were distributed at two timesteps, then the matrices would have 2 rows and 3 columns. If you are not already familiar with the `set_species()` function, see the [Mosquito Species](https://mrc-ide.github.io/malariasimulationGD/articles/SetSpecies.html) vignette.  
 
 The default parameters are set to model *Anopheles gambiae*. 
 ```{r}

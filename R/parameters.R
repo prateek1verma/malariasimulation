@@ -350,7 +350,7 @@ get_parameters <- function(overrides = list(), parasite = "falciparum") {
     # infectivity towards mosquitos
     # parasite incubation periods
     # hypnozoite parameters (p.v only)
-    malariasimulation::parasite_parameters[[parasite]],
+    malariasimulationGD::parasite_parameters[[parasite]],
     list(
       # parasite
       parasite = parasite,

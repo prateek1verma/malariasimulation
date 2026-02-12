@@ -38,7 +38,7 @@
  * zero-initialising implementation and 60% faster than the one which uses
  * push_back. For larger vector sizes the difference is less pronounced,
  * possibly because caches become saturated. At the time of writing, on a
- * real-word run of malariasimulation with a population size of 1M the overall
+ * real-word run of malariasimulationGD with a population size of 1M the overall
  * speedup is about 2-3%.
  *
  * https://wolchok.org/posts/cxx-trap-1-constant-size-vector/
