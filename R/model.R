@@ -146,7 +146,7 @@ run_resumable_simulation <- function(
     individual::restore_object_state(
       initial_state$timesteps,
       stateful_objects,
-      initial_state$malariasimulation)
+      initial_state$malariasimulationGD)
   }
 
   individual_state <- individual::simulation_loop(
@@ -172,7 +172,7 @@ run_resumable_simulation <- function(
   final_state <- list(
     timesteps = timesteps,
     individual = individual_state,
-    malariasimulation = individual::save_object_state(stateful_objects)
+    malariasimulationGD = individual::save_object_state(stateful_objects)
   )
 
   data <- renderer$to_dataframe()

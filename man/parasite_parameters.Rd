@@ -17,6 +17,6 @@ A
 parasite_parameters
 }
 \description{
-Parasite-specific parameters for P. falciparum and vivax for use in malariasimulation
+Parasite-specific parameters for P. falciparum and vivax for use in malariasimulationGD
 }
 \keyword{datasets}

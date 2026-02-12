@@ -20,10 +20,10 @@ knitr::opts_chunk$set(
 ```
 
 ```{r setup}
-library(malariasimulation)
+library(malariasimulationGD)
 ```
 
-The vector model in malariasimulation initialises vector species
+The vector model in malariasimulationGD initialises vector species
 populations with a given carrying capacity. This capacity determines the
 population size of mosquitoes that the environment can support,
 ultimately feeding into the intensity of transmission in the simulation.
@@ -35,7 +35,7 @@ seek to reduce the carrying capacity, for example by implementing larval
 source management. An invasive species may exploit a previously empty
 niche, leading to an increase in the carrying capacity.
 
-All of these phenomena can be captured in malariasimulation using a
+All of these phenomena can be captured in malariasimulationGD using a
 selection of functions to modify the parameter list. These are
 demonstrated below.
 
@@ -80,7 +80,7 @@ lines(s_seasonal$pfpr ~ s_seasonal$timestep, col = "darkorchid3")
 
 ## Custom modification of the mosquito carrying capacity
 
-In malariasimulation, we can also modify the carrying capacity over time in a more
+In malariasimulationGD, we can also modify the carrying capacity over time in a more
 bespoke manner. We can use the `set_carrying_capacity()` helper function to 
 specify scalars that modify the species-specific carrying capacity through time,
 relative to the baseline carrying capacity, at defined time steps. The baseline

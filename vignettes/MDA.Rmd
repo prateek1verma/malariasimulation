@@ -18,22 +18,22 @@ knitr::opts_chunk$set(
 
 ```{r setup}
 # Load the requisite packages:
-library(malariasimulation)
+library(malariasimulationGD)
 # Set colour palette:
 cols <- c("#E69F00", "#56B4E9", "#009E73", "#CC79A7","#F0E442", "#0072B2", "#D55E00")
 ```
 
 Malaria chemoprevention encompasses a suite of strategies for reducing malaria morbidity, mortality, and transmission through the treatment of at-risk populations with antimalarial drugs. Three such strategies are mass drug administration (MDA), seasonal malaria chemoprevention (SMC), and perennial malaria chemoprevention (PMC). MDA attempts to simultaneously treat an entire population, irrespective of their infection risk or status. SMC targets children aged 3-59 months with a course of an antimalarial through the peak malaria transmission season. PMC is designed for settings with perennially high transmission and seeks to administer a full antimalarial course at defined intervals irrespective of age or disease status.
 
-`malariasimulation` enables users to simulate the effects of chemoprevention strategies on malaria transmission, and provides the flexibility to design and simulate a range of MDA/SMC/PMC campaigns for a suite of antimalarial drugs. Specifically, users are able to load or specify parameters describing both the characteristics of the antimalarial(s) (e.g. drug efficacy, prophylactic profile) and their distribution (e.g. coverage, distribution timing, and the section of the population to treat). This vignette provides simple, illustrative demonstrations of how MDA and SMC campaigns can be set-up and simulated using `malariasimulation`. The functionality to simulate PMC campaigns is also built into `malariasimulation` via the `set_pmc()` function, but we do not demonstrate the use of PMC in this vignette (for further information on their use, see [set_pmc](https://mrc-ide.github.io/malariasimulation/reference/set_pmc.html)).
+`malariasimulationGD` enables users to simulate the effects of chemoprevention strategies on malaria transmission, and provides the flexibility to design and simulate a range of MDA/SMC/PMC campaigns for a suite of antimalarial drugs. Specifically, users are able to load or specify parameters describing both the characteristics of the antimalarial(s) (e.g. drug efficacy, prophylactic profile) and their distribution (e.g. coverage, distribution timing, and the section of the population to treat). This vignette provides simple, illustrative demonstrations of how MDA and SMC campaigns can be set-up and simulated using `malariasimulationGD`. The functionality to simulate PMC campaigns is also built into `malariasimulationGD` via the `set_pmc()` function, but we do not demonstrate the use of PMC in this vignette (for further information on their use, see [set_pmc](https://mrc-ide.github.io/malariasimulationGD/reference/set_pmc.html)).
 
 ## Mass Drug Administration
 
-To illustrate how MDA can be simulated using `malariasimulation`, we will implement a campaign that distributes a single dose of sulphadoxine-pyrimethamine amodiaquine (SP-AQ) to 80% of the entire population once a year over a two year period, initiated at the end of the first year.
+To illustrate how MDA can be simulated using `malariasimulationGD`, we will implement a campaign that distributes a single dose of sulphadoxine-pyrimethamine amodiaquine (SP-AQ) to 80% of the entire population once a year over a two year period, initiated at the end of the first year.
 
 ### Parameterisation
 
-The first step is to generate the list of `malariasimulation` parameters using the `get_parameters()` function. Here, we'll use the default `malariasimulation` parameter set (run `?get_parameters()` to view), but specify the seasonality parameters to simulate a highly seasonal, unimodal rainfall pattern (illustrated in the plot of total adult female mosquito population dynamics below). To do this, we set `model_seasonality` to `TRUE` within `get_parameters()`, and then tune the rainfall pattern using the `g0`, `g`, and `h` parameters (which represent fourier coefficients). In the `malariasimulation` model, rainfall governs the time-varying mosquito population carrying capacity through density-dependent regulation of the larval population and, therefore, annual patterns of malaria transmission. Next, we use the `set_equilibrium()` function to tune the initial human and mosquito populations to those required to observe the specified initial EIR.
+The first step is to generate the list of `malariasimulationGD` parameters using the `get_parameters()` function. Here, we'll use the default `malariasimulationGD` parameter set (run `?get_parameters()` to view), but specify the seasonality parameters to simulate a highly seasonal, unimodal rainfall pattern (illustrated in the plot of total adult female mosquito population dynamics below). To do this, we set `model_seasonality` to `TRUE` within `get_parameters()`, and then tune the rainfall pattern using the `g0`, `g`, and `h` parameters (which represent fourier coefficients). In the `malariasimulationGD` model, rainfall governs the time-varying mosquito population carrying capacity through density-dependent regulation of the larval population and, therefore, annual patterns of malaria transmission. Next, we use the `set_equilibrium()` function to tune the initial human and mosquito populations to those required to observe the specified initial EIR.
 
 ```{r}
 # Establish the length of time, in daily time steps, over which to simulate:
@@ -63,7 +63,7 @@ simparams <- set_equilibrium(simparams, starting_EIR)
 
 ### Interventions
 
-Having established a base set of parameters (`simparams`), the next step is to add the parameters specifying the MDA campaign. We first use the `set_drugs()` function to update the parameter list (`simparams`) with the parameter values for the drug(s) we wish to simulate, in this case using the in-built parameter set for SP-AQ (`SP_AQ_params`). Note that the `malariasimulation` package also contains in-built parameter sets for dihydroartemisinin-piperaquine (`DHA_PQP_params`) and artemether lumefantrine (`AL_params`), and users can also define their own drug parameters.
+Having established a base set of parameters (`simparams`), the next step is to add the parameters specifying the MDA campaign. We first use the `set_drugs()` function to update the parameter list (`simparams`) with the parameter values for the drug(s) we wish to simulate, in this case using the in-built parameter set for SP-AQ (`SP_AQ_params`). Note that the `malariasimulationGD` package also contains in-built parameter sets for dihydroartemisinin-piperaquine (`DHA_PQP_params`) and artemether lumefantrine (`AL_params`), and users can also define their own drug parameters.
 
 We then define the time steps on which we want the MDA to occur (stored here in the vector `mda_events` for legibility), and use the `set_mda()` function to update the parameter list with our MDA campaign parameters. `set_mda()` takes as its first two arguments the base parameter list and the time steps on which to schedule MDA events. This function also requires the user to specify the proportion of the population they want to treat using `coverages`, as well as the age-range of the population we want to treat using `min_ages` and `max_ages`, *for each timestep on which MDA is scheduled*. Note that this enables users to specify individual events to have different drug, coverage, and human-target properties. The `drug` argument refers to the index of the drug we want to distribute in the MDA in the list of parameters (in this demonstration we have only added a single drug, SP-AQ, using `set_drugs()`, but we could have specified additional drugs).
 
@@ -169,7 +169,7 @@ legend(x = 20, y = 0.99, legend = c("MDA", "No-Int"),
 
 ## Seasonal Malaria Chemoprevention
 
-To demonstrate how to simulate SMC in `malariasimulation` , in the following section we'll set-up and simulate a campaign that treats 90% of children aged 3-59 months old with four doses of SP-AQ per year. We will set the SMC campaign to begin in the second year, run for two years, and specify the four SMC events to occur at monthly intervals, starting two months prior to the peak malaria season.
+To demonstrate how to simulate SMC in `malariasimulationGD` , in the following section we'll set-up and simulate a campaign that treats 90% of children aged 3-59 months old with four doses of SP-AQ per year. We will set the SMC campaign to begin in the second year, run for two years, and specify the four SMC events to occur at monthly intervals, starting two months prior to the peak malaria season.
 
 ### Interventions
 

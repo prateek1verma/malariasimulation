@@ -57,13 +57,13 @@ test_that('FOIM is consistent with equilibrium', {
 
   EIRs <- c(1, 5, 10, 100)
 
-  eq_params <- malariaEquilibrium::load_parameter_set()
+  eq_params <- malariaEquilibriumGD::load_parameter_set()
 
   ages <- 0:999 / 10
   expected_foim <- vnapply(
     EIRs,
     function(EIR) {
-      malariaEquilibrium::human_equilibrium(
+      malariaEquilibriumGD::human_equilibrium(
         EIR,
         0,
         eq_params,
@@ -108,9 +108,9 @@ test_that('phi is consistent with equilibrium at high EIR (no het)', {
     enable_heterogeneity = FALSE
   ))
   parameters <- set_equilibrium(parameters, EIR)
-  eq_params <- malariaEquilibrium::load_parameter_set()
+  eq_params <- malariaEquilibriumGD::load_parameter_set()
 
-  eq <-  malariaEquilibrium::human_equilibrium_no_het(
+  eq <-  malariaEquilibriumGD::human_equilibrium_no_het(
     EIR,
     0,
     eq_params,
@@ -140,9 +140,9 @@ test_that('phi is consistent with equilibrium at high EIR', {
 
   parameters <- get_parameters(list(human_population = population))
   parameters <- set_equilibrium(parameters, EIR)
-  eq_params <- malariaEquilibrium::load_parameter_set()
+  eq_params <- malariaEquilibriumGD::load_parameter_set()
 
-  eq <-  malariaEquilibrium::human_equilibrium(
+  eq <-  malariaEquilibriumGD::human_equilibrium(
     EIR,
     0,
     eq_params,

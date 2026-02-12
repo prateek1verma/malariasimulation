@@ -18,7 +18,7 @@ knitr::opts_chunk$set(
 
 ```{r, output.lines=6}
 # Load the requisite packages:
-library(malariasimulation)
+library(malariasimulationGD)
 # Set colour palette:
 cols  <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 ```
@@ -45,7 +45,7 @@ simulation <- run_simulation(timesteps = 100, parameters = p)
 
 Our default *P. vivax* parameters are sourced from a version of the analysis in White et al. 2018 (doi: 10.1038/s41467-018-05860-8), where model parameters were fitted to data from Papua New Guinea. The chosen parameter set fixes `b = 0.25` and `sigma_squared = 1.67` (for consistency with the *P. falciparum* model). The default parameters for both parasite species can be found in `data/raw/parasite_parameters.csv`, while parameters common to both models are given in `R/parameters.R` under `get_parameters()`.
 
-Values for the model fitting posterior distribution can be selected using the `set_parameter_draw()` function as found in the [Parameter Variation](https://mrc-ide.github.io/malariasimulation/articles/ParameterVariation.html) vignette.
+Values for the model fitting posterior distribution can be selected using the `set_parameter_draw()` function as found in the [Parameter Variation](https://mrc-ide.github.io/malariasimulationGD/articles/ParameterVariation.html) vignette.
 
 ### Structure
 

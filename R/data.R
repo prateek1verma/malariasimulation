@@ -1,6 +1,6 @@
 #' Parasite parameters
 #'
-#' Parasite-specific parameters for P. falciparum and vivax for use in malariasimulation
+#' Parasite-specific parameters for P. falciparum and vivax for use in malariasimulationGD
 #'
 #' @format ## `parasite_parameters`
 #' A 

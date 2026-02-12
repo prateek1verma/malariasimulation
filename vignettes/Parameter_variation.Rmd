@@ -10,7 +10,7 @@ vignette: >
   
 ```{r setup, echo= FALSE}
 # Load the requisite packages:
-library(malariasimulation)
+library(malariasimulationGD)
 # Set colour palette:
 cols <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 knitr::opts_chunk$set(
@@ -25,7 +25,7 @@ This vignette describes how variation in estimated model parameters can be incor
 
 ##  Estimating variation in parameters
 
-The malariasimulation transmission model was fit utilizing a Bayesian framework, which produced a posterior distribution of parameter sets. Default parameters for the model were taken as the median across 50 random sets of parameter draws.
+The malariasimulationGD transmission model was fit utilizing a Bayesian framework, which produced a posterior distribution of parameter sets. Default parameters for the model were taken as the median across 50 random sets of parameter draws.
 
 ```{r, fig.align = 'center', out.width='100%'}
 ## plot parasite prevalence with default model parameters

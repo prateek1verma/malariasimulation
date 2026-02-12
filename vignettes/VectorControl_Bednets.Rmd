@@ -19,12 +19,12 @@ knitr::opts_chunk$set(
 
 ```{r setup}
 # Load the requisite packages:
-library(malariasimulation)
+library(malariasimulationGD)
 # Set colour palette:
 cols <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 ```
 
-Long-lasting insecticide-treated bed nets are a highly effective intervention to prevent malaria. The effects of insecticide-treated bed net distribution campaigns can be simulated using `malariasimulation`. The model provides the user with the flexibility to specify parameters that describe the net distribution campaign (e.g. timing, coverage, and target population) and the bed nets distributed (e.g. efficacy, longevity). We will illustrate this through an example with two bed net distributions, once per year.
+Long-lasting insecticide-treated bed nets are a highly effective intervention to prevent malaria. The effects of insecticide-treated bed net distribution campaigns can be simulated using `malariasimulationGD`. The model provides the user with the flexibility to specify parameters that describe the net distribution campaign (e.g. timing, coverage, and target population) and the bed nets distributed (e.g. efficacy, longevity). We will illustrate this through an example with two bed net distributions, once per year.
 
 We can create a few plotting functions to visualise the output.
 ```{r}
@@ -67,7 +67,7 @@ output_control <- run_simulation(timesteps = sim_length, parameters = simparams)
 ```
 
 #### A note on mosquito species  
-It is also possible to use the `set_species()` function to account for 3 different mosquito species in the simulation. In this case, the matrices would need to have additional column corresponding to each mosquito species. For example, if we specified that there were 3 species of mosquitoes in the model and nets were distributed at two timesteps, then the matrices would have 2 rows and 3 columns. If you are not already familiar with the `set_species()` function, see the [Mosquito Species](https://mrc-ide.github.io/malariasimulation/articles/SetSpecies.html) vignette.  
+It is also possible to use the `set_species()` function to account for 3 different mosquito species in the simulation. In this case, the matrices would need to have additional column corresponding to each mosquito species. For example, if we specified that there were 3 species of mosquitoes in the model and nets were distributed at two timesteps, then the matrices would have 2 rows and 3 columns. If you are not already familiar with the `set_species()` function, see the [Mosquito Species](https://mrc-ide.github.io/malariasimulationGD/articles/SetSpecies.html) vignette.  
 
 The default parameters are set to model *Anopheles gambiae*. 
 ```{r}
@@ -116,7 +116,7 @@ The average population bed net usage will be influenced by:
 * The assumed net retention half life (`gamman`)
 * Correlations in the recipients of nets between rounds  
   
-The output from `malariasimulation::run_simulation()` has a variable `n_use_net` that shows the number of people using bed nets at any given timestep. We can visualise the proportion of the population using bed nets over time to understand how bed net usage changes. 
+The output from `malariasimulationGD::run_simulation()` has a variable `n_use_net` that shows the number of people using bed nets at any given timestep. We can visualise the proportion of the population using bed nets over time to understand how bed net usage changes. 
 
 ```{r, fig.align = 'center', out.width='100%'}
 output$prop_use_net <- output$n_use_net / human_population
@@ -131,7 +131,7 @@ axis(side = 1, lty = 1, col = "black", pos = 0); axis(side = 2, lty = 1, col = "
   
 ## Using the `netz` package
 
-The [`netz` package](https://mrc-ide.github.io/netz/index.html) is a useful tool to help set up bed nets in `malariasimulation`. `malariasimulation` takes as an input the proportion of the population who were distributed a bed net at specific time points, but net distribution or use data are now always available for a specific region or country. `netz` has functionality to estimate modelled population usage over time in the simulation for a given set of input distributions. It can also help to fit the input coverages to usage data.
+The [`netz` package](https://mrc-ide.github.io/netz/index.html) is a useful tool to help set up bed nets in `malariasimulationGD`. `malariasimulationGD` takes as an input the proportion of the population who were distributed a bed net at specific time points, but net distribution or use data are now always available for a specific region or country. `netz` has functionality to estimate modelled population usage over time in the simulation for a given set of input distributions. It can also help to fit the input coverages to usage data.
   
 See [this vignette](https://mrc-ide.github.io/netz/articles/population_usage.html) from the `netz` package that demonstrates how to estimate population bed net usage from an input distribution. 
 

@@ -18,12 +18,12 @@ knitr::opts_chunk$set(
 
 ```{r setup}
 # Load the requisite packages:
-library(malariasimulation)
+library(malariasimulationGD)
 # Set colour palette:
 cols <- c("#E69F00", "#56B4E9", "#009E73", "#CC79A7","#F0E442", "#0072B2", "#D55E00")
 ```
 
-The dynamics of malaria transmission, and the efficacy of interventions designed to interrupt it, are highly context specific and an important consideration is the demography of the population(s) under investigation. To suit the research needs of the user, `malariasimulation` allows for the specification of custom human population demographics by allowing them to specify age-group specific death rate parameters. It also enables users to instruct the model to render outputs with variables of interest (e.g. human population, number of cases detectable by microscopy, number of severe cases, etc.) presented by user-defined age groups. In this vignette, we use simple, illustrative cases to demonstrate how to customise the output rendered by the `run_simulation()` function, and how to specify both fixed and time-varying custom death rates.
+The dynamics of malaria transmission, and the efficacy of interventions designed to interrupt it, are highly context specific and an important consideration is the demography of the population(s) under investigation. To suit the research needs of the user, `malariasimulationGD` allows for the specification of custom human population demographics by allowing them to specify age-group specific death rate parameters. It also enables users to instruct the model to render outputs with variables of interest (e.g. human population, number of cases detectable by microscopy, number of severe cases, etc.) presented by user-defined age groups. In this vignette, we use simple, illustrative cases to demonstrate how to customise the output rendered by the `run_simulation()` function, and how to specify both fixed and time-varying custom death rates.
 
 ## Age group rendering
 

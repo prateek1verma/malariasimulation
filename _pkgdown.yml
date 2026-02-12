@@ -1,7 +1,7 @@
 destination: docs
 
 navbar:
-  title: "malariasimulation"
+  title: "malariasimulationGD"
   structure:
     left: [vignettes, functions, news]
     right: [icon]
@@ -42,7 +42,7 @@ navbar:
       href: reference/index.html
     icon:
       icon: fa-github
-      href: https://github.com/mrc-ide/malariasimulation
+      href: https://github.com/mrc-ide/malariasimulationGD
 
 reference:
 - title: "Run functions"
