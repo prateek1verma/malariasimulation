@@ -1,67 +1,14 @@
 Package: malariasimulationGD
 Title: An individual based model for malaria
 Version: 2.0.2
-Authors@R: c(
-  person(
-    given = "Giovanni",
-    family = "Charles",
-    role = c('aut', 'cre'),
-    email = 'giovanni.charles@gmail.com'
-  ),
-  person(
-    given = "Peter",
-    family = "Winskill",
-    role = c('aut'),
-    email = 'p.winskill@ic.ac.uk'
-  ),
-  person(
-    given = "Hillary",
-    family = "Topazian",
-    role = c('aut'),
-    email = 'h.topazian@imperial.ac.uk'
-  ),
-  person(
-    given = "Joseph",
-    family = "Challenger",
-    role = c('aut'),
-    email = 'j.challenger@imperial.ac.uk'
-  ),
-  person(
-    given = "Richard",
-    family = "Fitzjohn",
-    role = c('aut'),
-    email = 'r.fitzjohn@imperial.ac.uk'
-  ),
-  person(
-    given = "Richard",
-    family = "Sheppard",
-    role = c('aut'),
-    email = 'r.sheppard11@imperial.ac.uk'
-  ),
-  person(
-    given = "Tom",
-    family = "Brewer",
-    role = c('aut'),
-    email = 'thomas.brewer16@imperial.ac.uk'
-  ),
-  person(
-    given = "Kelly",
-    family = "McCain",
-    role = c('aut'),
-    email = 'k.mccain22@imperial.ac.uk'
-  ),
-  person(
-    given = "Lydia",
-    family = "Haile",
-    role = c('aut'),
-    email = 'l.haile@imperial.ac.uk'
-  ),
-  person(
-    given = "Imperial College of Science, Technology and Medicine",
-    family = "",
-    role = c('cph'),
-    email = 'giovanni.charles10@imperial.ac.uk'
-  ))
+Authors@R: person(
+  given = "Prateek",
+  family = "Verma",
+  role = c('aut', 'cre'),
+  email = 'prateek.verma@example.com'
+)
+Author: Prateek Verma [aut, cre]
+Maintainer: Prateek Verma <prateek.verma@example.com>
 Description: Specifies the latest and greatest malaria model.
 License: MIT + file LICENSE
 Encoding: UTF-8
