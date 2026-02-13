@@ -174,9 +174,9 @@ vivax_translations = list(
   
 )
 
-#' @description translate parameter keys from the malariaEquilibriumGD format
+#' @description translate parameter keys from the malariaEquilibrium format
 #' to ones compatible with this IBM 
-#' @param params with keys in the malariaEquilibriumGD format
+#' @param params with keys in the malariaEquilibrium format
 #' @noRd
 translate_equilibrium <- function(params) {
   translated <- list()
@@ -196,11 +196,11 @@ translate_equilibrium <- function(params) {
   translated
 }
 
-#' @description translate model parameters to the malariaEquilibriumGD format
+#' @description translate model parameters to the malariaEquilibrium format
 #' @param params model params
 #' @noRd
 translate_parameters <- function(params) {
-  translated <- malariaEquilibriumGD::load_parameter_set()
+  translated <- malariaEquilibrium::load_parameter_set()
   for (name in names(params)) {
     if(name %in% names(back_translations)) {
       translation <- back_translations[[name]]
@@ -233,9 +233,9 @@ translate_vivax_parameters <- function(params) {
   translated
 }
 
-#' @title remove parameter keys from the malariaEquilibriumGD format that are not used
+#' @title remove parameter keys from the malariaEquilibrium format that are not used
 #' in this IBM 
-#' @param params with keys in the malariaEquilibriumGD format
+#' @param params with keys in the malariaEquilibrium format
 #' @noRd
 remove_unused_equilibrium <- function(params) {
   remove_keys(
@@ -257,8 +257,8 @@ remove_unused_equilibrium <- function(params) {
 #' @param parameters model parameters to update
 #' @param init_EIR the desired initial EIR (infectious bites per person per day over the entire human
 #' population)
-#' @param eq_params parameters from the malariaEquilibriumGD package, if null.
-#' The default malariaEquilibriumGD parameters will be used
+#' @param eq_params parameters from the malariaEquilibrium package, if null.
+#' The default malariaEquilibrium parameters will be used
 #' @export
 set_equilibrium <- function(parameters, init_EIR, eq_params = NULL) {
   if(parameters$parasite == "falciparum"){
@@ -270,12 +270,12 @@ set_equilibrium <- function(parameters, init_EIR, eq_params = NULL) {
         parameters
       )
     }
-    eq <- malariaEquilibriumGD::human_equilibrium(
+    eq <- malariaEquilibrium::human_equilibrium(
       EIR = init_EIR,
       ft = sum(get_treatment_coverages(parameters, 1)),
       p = eq_params,
       age = EQUILIBRIUM_AGES,
-      h = malariaEquilibriumGD::gq_normal(parameters$n_heterogeneity_groups)
+      h = malariaEquilibrium::gq_normal(parameters$n_heterogeneity_groups)
     )
     parameters <- c(
       list(

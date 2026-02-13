@@ -19,7 +19,7 @@ knitr::opts_chunk$set(
 ```{r setup, message=F, warning=F}
 # Load the requisite packages:
 library(malariasimulationGD)
-library(malariaEquilibriumGD)
+library(malariaEquilibrium)
 # Set colour palette:
 cols <- c("#E69F00", "#56B4E9", "#009E73", "#CC79A7","#F0E442", "#0072B2", "#D55E00")
 
@@ -29,11 +29,11 @@ The entomological inoculation rate (EIR), defined as the number of infectious bi
 
 When setting up a simulation, `malariasimulationGD` users often need to calibrate the model run to an observed level of transmission. Calibrating to an EIR value can be done directly using the `set_equilibrium()` function, but EIR is difficult to measure and in practice *Pf*PR~2-10~ is more commonly recorded/reported as a measure of transmission. However, `malariasimulationGD` does not allow users to calibrate directly to an *Pf*PR~2-10~ value. To calibrate to a target *Pf*PR~2-10~, users must instead identify and input the EIR value that yields the target *Pf*PR~2-10~ value. In this vignette, three methods for matching the EIR to a target *Pf*PR~2-10~ are outlined and compared.
 
-The first and fastest method uses the `malariaEquilibriumGD` package function `human_equilibrium()` to calculate the equilibrium *Pf*PR~2-10~ for a given EIR using the canonical equilibrium solution for the `malariasimulationGD` model. The second method involves running `malariasimulationGD` simulations across a small set of initial EIR values, extracting the *Pf*PR~2-10~ from each simulation run, and fitting a model relating initial EIR to *Pf*PR~2-10~ to allow users to predict the initial EIR value required to yield the desired *Pf*PR~2-10~. The third approach is to calibrate the model using the `cali` package function (see https://github.com/mrc-ide/cali for more information) `calibrate()` , which searches a user-defined EIR parameter space and identifies the value which yields the target *Pf*PR~2-10~ to a defined tolerance.
+The first and fastest method uses the `malariaEquilibrium` package function `human_equilibrium()` to calculate the equilibrium *Pf*PR~2-10~ for a given EIR using the canonical equilibrium solution for the `malariasimulationGD` model. The second method involves running `malariasimulationGD` simulations across a small set of initial EIR values, extracting the *Pf*PR~2-10~ from each simulation run, and fitting a model relating initial EIR to *Pf*PR~2-10~ to allow users to predict the initial EIR value required to yield the desired *Pf*PR~2-10~. The third approach is to calibrate the model using the `cali` package function (see https://github.com/mrc-ide/cali for more information) `calibrate()` , which searches a user-defined EIR parameter space and identifies the value which yields the target *Pf*PR~2-10~ to a defined tolerance.
 
-## *Pf*PR~2-10~ matching using malariaEquilibriumGD
+## *Pf*PR~2-10~ matching using malariaEquilibrium
 
-The `malariaEquilibriumGD` package function `human_equilibrium()` returns the canonical equilibrium solution for a given EIR and the *Pf*PR~2-10~ can be calculated from the output (see <https://github.com/mrc-ide/malariaEquilibriumGD> for more information). The first step is to set a large range of EIR values to generate matching *Pf*PR~2-10~ values for. Next, we load the package's default parameter set, specify an effective clinical treatment coverage (`ft`) of 0.45 and, for each EIR value generated, run the `human_equilibrium()` function.
+The `malariaEquilibrium` package function `human_equilibrium()` returns the canonical equilibrium solution for a given EIR and the *Pf*PR~2-10~ can be calculated from the output (see <https://github.com/mrc-ide/malariaEquilibrium> for more information). The first step is to set a large range of EIR values to generate matching *Pf*PR~2-10~ values for. Next, we load the package's default parameter set, specify an effective clinical treatment coverage (`ft`) of 0.45 and, for each EIR value generated, run the `human_equilibrium()` function.
 
 The `human_equilibrium()` function returns a dataframe containing the proportion of each age class in each state variable at equilibrium. The *Pf*PR~2-10~ can be calculated from the output for each EIR value by summing the proportion of people aged 2-10 with cases of malaria (`pos_M`) and dividing this proportion by the proportion of the population between the ages 2-10 (`prop`). Finally, we store the matching EIR and *Pf*PR~2-10~ values in a data frame.
 
@@ -42,14 +42,14 @@ The `human_equilibrium()` function returns a dataframe containing the proportion
 malEq_EIR <- seq(from = 0.1, to = 50, by = 0.5)
 
 # Load the base malariaSimulation parameter set:
-q_simparams <- malariaEquilibriumGD::load_parameter_set("Jamie_parameters.rds")
+q_simparams <- malariaEquilibrium::load_parameter_set("Jamie_parameters.rds")
 
 # Use human_equilibrium() to calculate the PfPR2-10 values for the range of
 # EIR values:
 malEq_prev <- vapply(
   malEq_EIR,
   function(eir) {
-    eq <- malariaEquilibriumGD::human_equilibrium(
+    eq <- malariaEquilibrium::human_equilibrium(
       eir,
       ft = 0.45,
       p = q_simparams,
@@ -71,7 +71,7 @@ As this method does not involve running simulations it can return matching *Pf*P
 
 ## *Pf*PR~2-10~ matching using malariasimulationGD
 
-Where the `malariaEquilibriumGD` method is not viable, an alternative is to run `malariasimulationGD` simulations over a smaller range of initial EIR values, extract the *Pf*PR~2-10~ from each run, fit a model relating initial EIR to *Pf*PR~2-10~, and use the model to predict the initial EIR value required to yield the desired *Pf*PR~2-10~. This approach allows users to benefit from the tremendous flexibility in human population, mosquito population, and intervention package parameters afforded by the `malariasimulationGD` package. An example of this method is outlined below.
+Where the `malariaEquilibrium` method is not viable, an alternative is to run `malariasimulationGD` simulations over a smaller range of initial EIR values, extract the *Pf*PR~2-10~ from each run, fit a model relating initial EIR to *Pf*PR~2-10~, and use the model to predict the initial EIR value required to yield the desired *Pf*PR~2-10~. This approach allows users to benefit from the tremendous flexibility in human population, mosquito population, and intervention package parameters afforded by the `malariasimulationGD` package. An example of this method is outlined below.
 
 ### Establish malariasimulationGD parameters
 
@@ -194,7 +194,7 @@ malSim_fit <- cbind(malSim_fit, data.frame(init_EIR = c(0 ,seq(0.1, 50, 0.1))))
 
 ## Visualisation
 
-Let's visually compare the `malariaEquilibriumGD` and `malariasimulationGD` methods for matching EIR to *Pf*PR~2-10~ values. In the section below we open a blank plot, plot the initial EIR and resulting *Pf*PR~2-10~ points generated using `malariasimulationGD` runs and overlay the line of best fit (orange line). Also overlayed is a line mapping EIR and *Pf*PR~2-10~ values calculated using `malariaEquilibriumGD` (blue line).
+Let's visually compare the `malariaEquilibrium` and `malariasimulationGD` methods for matching EIR to *Pf*PR~2-10~ values. In the section below we open a blank plot, plot the initial EIR and resulting *Pf*PR~2-10~ points generated using `malariasimulationGD` runs and overlay the line of best fit (orange line). Also overlayed is a line mapping EIR and *Pf*PR~2-10~ values calculated using `malariaEquilibrium` (blue line).
 
 ```{r,  eval = F}
 # Establish a plotting window:
@@ -217,7 +217,7 @@ lines(x = malSim_fit$init_EIR,
       type = "l", 
       lty = 1)
 
-# Overlay the malariaEquilibriumGD EIR to PfPR2-10 line:
+# Overlay the malariaEquilibrium EIR to PfPR2-10 line:
 lines(x = malEq_P2E$EIR, 
       y = malEq_P2E$prev, 
       col = cols[2], 
@@ -227,7 +227,7 @@ lines(x = malEq_P2E$EIR,
 
 # Add a legend:
 legend("topright",
-       legend = c("malariasimulationGD", "malariaEquilibriumGD"),
+       legend = c("malariasimulationGD", "malariaEquilibrium"),
        col = c(cols[1:2]),
        lty = c(1,1),
        box.col = "white",
@@ -236,7 +236,7 @@ legend("topright",
 
 <img src="EIRprevmatch_Fig_1.png" style="display:block; margin: 0 auto; border-width: 0; width: 100%"/>
 
-We can see that the `malariaEquilibriumGD` provides a reasonable approximation when the target *Pf*PR~2-10~ is low, but recommends slightly different initial EIR values for intermediate *Pf*PR~2-10~ values. However, in our example we only simulated clinical treatment covering 45% of the population. If we needed to identify the EIR to yield a target *Pf*PR~2-10~ value in a scenario in which additional interventions, such as bed nets or vaccines, had been deployed, the difference between the EIR value recommended by these methods would be likely to increase significantly.
+We can see that the `malariaEquilibrium` provides a reasonable approximation when the target *Pf*PR~2-10~ is low, but recommends slightly different initial EIR values for intermediate *Pf*PR~2-10~ values. However, in our example we only simulated clinical treatment covering 45% of the population. If we needed to identify the EIR to yield a target *Pf*PR~2-10~ value in a scenario in which additional interventions, such as bed nets or vaccines, had been deployed, the difference between the EIR value recommended by these methods would be likely to increase significantly.
 
 ## Matching EIR to *Pf*PR~2-10~ values
 

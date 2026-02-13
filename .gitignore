@@ -1,7 +1,9 @@
 *.sw*
 .RData
 .rhistory
+.Rhistory
 malariasimulationGD.Rcheck
+..Rcheck/
 malariasimulation_*.tar.gz
 .Rd2pdf*
 .Rproj.user
@@ -12,3 +14,8 @@ doc
 inst/doc
 /doc/
 /Meta/
+src/*.o
+src/*.so
+src/*.dll
+src/*.dylib
+src/symbols.rds
