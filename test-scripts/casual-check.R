@@ -1,5 +1,6 @@
 # Load the requisite packages:
 # library(malariasimulation)
+library(MGDrivE)
 # Set colour palette:
 cols <- c("#E69F00", "#56B4E9", "#009E73", "#CC79A7","#F0E442", "#0072B2", "#D55E00")
 # Set the timespan over which to simulate
@@ -107,4 +108,8 @@ barplot(height = dem_output[dem_output$run == "custom", c("n", "age_plot")]$n,
         main = "Custom", xlab = "Age Group",
         cex.axis = 0.8, cex.names = 0.8, cex.lab = 1, cex.main = 1, las = 2,
         col = cols[1]); box()
+
+library(MGDrivE)
+cubeMendelian()
+
 
