@@ -82,10 +82,9 @@ create_processes <- function(
       processes,
       mosquito_emergence_process = create_mosquito_emergence_process(
         solvers,
-        variables$mosquito_state,
-        variables$species,
-        parameters$species,
-        parameters$dpl
+        models,
+        variables,
+        parameters
       )
     )
   }

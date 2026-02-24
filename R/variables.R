@@ -395,10 +395,18 @@ create_variables <- function(parameters) {
       c('Sm', 'Pm', 'Im', 'NonExistent'),
       state_values
     )
+    wt_genotype <- 1L
+    if (!is.null(parameters$cube)) {
+      wt_genotype <- cube_wild_type_index(parameters$cube)
+    }
+    geno_id <- individual::IntegerVariable$new(
+      rep.int(wt_genotype, parameters$mosquito_limit)
+    )
     variables <- c(
       variables,
       species = species,
-      mosquito_state = mosquito_state
+      mosquito_state = mosquito_state,
+      geno_id = geno_id
     )
   }
 

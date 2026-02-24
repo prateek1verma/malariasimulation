@@ -330,6 +330,8 @@
 #' * ode_max_steps - the max number of steps for the solver; default = 1e6
 #' * enable_heterogeneity - boolean whether to include heterogeneity in biting
 #' rates; default = TRUE
+#' * cube - optional MGDrivE-style inheritance cube for adult mosquito genotype
+#' tracking in hybrid mode; default = NULL
 #'
 #' @export
 get_parameters <- function(overrides = list(), parasite = "falciparum") {
@@ -503,6 +505,7 @@ get_parameters <- function(overrides = list(), parasite = "falciparum") {
       # misc
       mosquito_limit   = 100 * 1000,
       individual_mosquitoes = FALSE,
+      cube = NULL,
       human_population_timesteps = 0,
       r_tol = 1e-4,
       a_tol = 1e-4,

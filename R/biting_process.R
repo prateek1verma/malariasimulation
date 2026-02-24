@@ -102,6 +102,15 @@ simulate_bites <- function(
     infectious_index <- variables$mosquito_state$get_index_of('Im')
     susceptible_index <- variables$mosquito_state$get_index_of('Sm')
     adult_index <- variables$mosquito_state$get_index_of('NonExistent')$not(TRUE)
+    genotype_tracking <- !is.null(parameters$cube) && !is.null(variables$geno_id)
+    if (genotype_tracking) {
+      cube_info <- cube_genotype_info(parameters$cube)
+      female_geno_totals <- rep.int(0, cube_info$G)
+      male_geno_totals <- rep.int(0, cube_info$G)
+      mu_by_species <- rep(0, length(parameters$species))
+      female_totals_by_species <- rep(0L, length(parameters$species))
+      V_by_species <- rep(1, length(parameters$species))
+    }
   }
   
   EIR <- 0
@@ -184,9 +193,26 @@ simulate_bites <- function(
     
     if (parameters$individual_mosquitoes) {
       # update the ODE with stats for ovoposition calculations
+      effective_total_M <- species_index$size()
+      if (genotype_tracking && !is.null(models[[s_i]]$genotype_state)) {
+        female_counts <- tabulate(
+          variables$geno_id$get_values(species_index),
+          nbins = cube_info$G
+        )
+        male_counts <- models[[s_i]]$genotype_state$male_counts
+        pgv <- calc_pg_V_from_cube(models[[s_i]]$cube, female_counts, male_counts)
+        V_by_species[[s_i]] <- pgv$V
+        effective_total_M <- effective_total_M * pgv$V
+        female_geno_totals <- female_geno_totals + female_counts
+        male_geno_totals <- male_geno_totals + male_counts
+        mu_by_species[[s_i]] <- mu
+        female_totals_by_species[[s_i]] <- species_index$size()
+        models[[s_i]]$genotype_state$last_V <- pgv$V
+      }
+
       aquatic_mosquito_model_update(
         models[[s_i]]$.model,
-        species_index$size(),
+        effective_total_M,
         f,
         mu
       )
@@ -213,6 +239,30 @@ simulate_bites <- function(
         solver_states[[ADULT_ODE_INDICES['Sm']]],
         f
       )
+    }
+  }
+
+  if (parameters$individual_mosquitoes && genotype_tracking) {
+    history <- parameters$mosquito_genotype_history
+    if (!is.null(history)) {
+      history$female[timestep, ] <- female_geno_totals
+      history$male[timestep, ] <- male_geno_totals
+      history$V[timestep, ] <- V_by_species
+      history$total_adults[timestep] <- sum(female_geno_totals + male_geno_totals)
+    }
+    for (s_i in seq_along(parameters$species)) {
+      if (is.null(models[[s_i]]$genotype_state)) {
+        next
+      }
+      male_counts <- models[[s_i]]$genotype_state$male_counts
+      if (length(male_counts) == 1L) {
+        # Keep the trivial cube case RNG-free and aligned with the implicit 1:1 sex ratio.
+        male_counts[[1]] <- female_totals_by_species[[s_i]]
+      } else {
+        death_prob <- min(mu_by_species[[s_i]], 1)
+        male_counts <- stats::rbinom(length(male_counts), size = male_counts, prob = 1 - death_prob)
+      }
+      models[[s_i]]$genotype_state$male_counts <- male_counts
     }
   }
 

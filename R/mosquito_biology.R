@@ -198,24 +198,167 @@ biting_effects_individual <- function(
 
   events$mosquito_death$schedule(died, 0)
 }
+
+cube_genotype_info <- function(cube) {
+  if (is.null(cube)) {
+    return(list(
+      G = 1L,
+      genotypesID = "WT",
+      wild_type_index = 1L
+    ))
+  }
+
+  if (is.null(cube$ih)) {
+    stop("cube$ih must be provided")
+  }
+  ih_dim <- dim(cube$ih)
+  if (length(ih_dim) != 3) {
+    stop("cube$ih must be a 3D array")
+  }
+  G <- ih_dim[[3]]
+  genotypes_id <- cube$genotypesID
+  if (is.null(genotypes_id)) {
+    genotypes_id <- as.character(seq_len(G))
+  }
+  if (length(genotypes_id) != G) {
+    stop("length(cube$genotypesID) must match dim(cube$ih)[3]")
+  }
+
+  list(
+    G = as.integer(G),
+    genotypesID = genotypes_id,
+    wild_type_index = cube_wild_type_index(cube)
+  )
+}
+
+cube_wild_type_index <- function(cube) {
+  if (is.null(cube) || is.null(cube$wildType)) {
+    return(1L)
+  }
+  wt <- cube$wildType
+  if (is.numeric(wt) && length(wt) >= 1) {
+    return(as.integer(wt[[1]]))
+  }
+  if (is.character(wt) && length(wt) >= 1) {
+    if (is.null(cube$genotypesID)) {
+      stop("cube$genotypesID is required when cube$wildType is a character")
+    }
+    idx <- match(wt[[1]], cube$genotypesID)
+    if (is.na(idx)) {
+      stop("cube$wildType was not found in cube$genotypesID")
+    }
+    return(as.integer(idx))
+  }
+  1L
+}
+
+sample_genotype_counts <- function(n, p) {
+  if (n <= 0) {
+    return(integer(length(p)))
+  }
+  if (length(p) == 1L) {
+    # exact and RNG-free in the trivial one-genotype case
+    out <- rep.int(0L, length(p))
+    out[[which.max(p)]] <- as.integer(n)
+    return(out)
+  }
+  as.integer(stats::rmultinom(1, size = n, prob = p)[, 1])
+}
+
+sample_genotype_ids <- function(n, p) {
+  counts <- sample_genotype_counts(n, p)
+  rep.int(seq_along(counts), counts)
+}
+
+adult_female_genotype_counts_by_species <- function(variables, species_name, G) {
+  adult_index <- variables$mosquito_state$get_index_of('NonExistent')$not(TRUE)
+  species_index <- variables$species$get_index_of(species_name)$and(adult_index)
+  if (species_index$size() == 0) {
+    return(rep.int(0, G))
+  }
+  tabulate(variables$geno_id$get_values(species_index), nbins = G)
+}
+
+#' @title Calculate offspring genotype proportions and viability from cube
+#' @param cube MGDrivE-style inheritance cube
+#' @param female_counts adult female counts by genotype
+#' @param male_counts adult male counts by genotype
+#' @noRd
+calc_pg_V_from_cube <- function(cube, female_counts, male_counts) {
+  G <- length(female_counts)
+  if (length(male_counts) != G) {
+    stop("female_counts and male_counts must have the same length")
+  }
+  wt <- cube_wild_type_index(cube)
+  p_fallback <- rep.int(0, G)
+  p_fallback[[wt]] <- 1
+  B_zero <- rep.int(0, G)
+
+  if (is.null(cube) || is.null(cube$ih)) {
+    return(list(p = p_fallback, V = 1, B = B_zero))
+  }
+
+  ih <- cube$ih
+  ih_dim <- dim(ih)
+  if (length(ih_dim) != 3 || any(ih_dim != c(G, G, G))) {
+    stop("cube$ih dimensions must be G x G x G")
+  }
+  tau <- cube$tau
+  if (is.null(tau)) {
+    tau <- array(1, dim = ih_dim)
+  } else if (!all(dim(tau) == ih_dim)) {
+    stop("cube$tau dimensions must match cube$ih")
+  }
+  eta <- cube$eta
+  if (is.null(eta)) {
+    eta <- matrix(1, nrow = G, ncol = G)
+  }
+  if (!all(dim(eta) == c(G, G))) {
+    stop("cube$eta dimensions must be G x G")
+  }
+
+  total_males <- sum(male_counts)
+  if (total_males <= 0) {
+    return(list(p = p_fallback, V = 1, B = B_zero))
+  }
+
+  Q <- outer(female_counts, male_counts / total_males)
+  B <- vnapply(seq_len(G), function(g) {
+    sum(Q * ih[, , g] * tau[, , g] * eta)
+  })
+  total_B <- sum(B)
+  if (total_B > 0) {
+    p <- B / total_B
+  } else {
+    p <- p_fallback
+  }
+
+  den <- sum(Q * apply(ih, c(1, 2), sum) * eta)
+  V <- if (den > 0) total_B / den else 1
+
+  list(p = p, V = V, B = B)
+}
+
 #' @title Mosquito emergence process
 #' @description Move mosquitos from NonExistent to Sm in line with the number of
 #' pupals in the ODE models
 #'
 #' @param solvers a list of solver objects for each species of mosquito
-#' @param state the variable for the mosquito state
-#' @param species the variable for the mosquito species
-#' @param species_names a character vector of species names for each solver
-#' @param dpl the delay for pupal growth (in timesteps)
+#' @param models mosquito model objects (used for genotype state when cube is set)
+#' @param variables simulation variables (mosquito_state, species, geno_id)
+#' @param parameters model parameters
 #' @noRd
 create_mosquito_emergence_process <- function(
   solvers,
-  state,
-  species,
-  species_names,
-  dpl
+  models,
+  variables,
+  parameters
   ) {
-  rate <- .5 * 1 / dpl
+  state <- variables$mosquito_state
+  species <- variables$species
+  geno_id <- variables$geno_id
+  species_names <- parameters$species
+  rate <- .5 * 1 / parameters$dpl
   function(timestep) {
     p_counts <- vnapply(
       solvers,
@@ -239,6 +382,23 @@ create_mosquito_emergence_process <- function(
     for (i in seq_along(species_names)) {
       to_hatch <- p_counts[[i]] * rate
       hatched <- bitset_at(non_existent, seq(latest, latest + to_hatch))
+      n_hatched <- hatched$size()
+
+      if (!is.null(models[[i]]$cube) && n_hatched > 0) {
+        cube_info <- cube_genotype_info(models[[i]]$cube)
+        female_counts <- adult_female_genotype_counts_by_species(
+          variables,
+          species_names[[i]],
+          cube_info$G
+        )
+        male_counts <- models[[i]]$genotype_state$male_counts
+        pgv <- calc_pg_V_from_cube(models[[i]]$cube, female_counts, male_counts)
+        geno_id$queue_update(sample_genotype_ids(n_hatched, pgv$p), hatched)
+        models[[i]]$genotype_state$male_counts <- male_counts + sample_genotype_counts(n_hatched, pgv$p)
+      } else if (n_hatched > 0) {
+        geno_id$queue_update(1L, hatched)
+      }
+
       state$queue_update('Sm', hatched)
       species$queue_update(species_names[[i]], hatched)
       latest <- latest + to_hatch + 1

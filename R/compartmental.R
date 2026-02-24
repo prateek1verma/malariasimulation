@@ -59,7 +59,29 @@ parameterise_mosquito_models <- function(parameters, timesteps) {
           ))
         )
       }
-      AquaticMosquitoModel$new(growth_model)
+      genotype_state <- NULL
+      if (!is.null(parameters$cube)) {
+        cube_info <- cube_genotype_info(parameters$cube)
+        initial_female_adults <- floor(sum(
+          initial_mosquito_counts(
+            parameters,
+            i,
+            parameters$init_foim,
+            m
+          )[ADULT_ODE_INDICES]
+        ))
+        male_counts <- rep.int(0, cube_info$G)
+        male_counts[[cube_info$wild_type_index]] <- initial_female_adults
+        genotype_state <- list(
+          male_counts = male_counts,
+          last_V = 1
+        )
+      }
+      AquaticMosquitoModel$new(
+        growth_model,
+        cube = parameters$cube,
+        genotype_state = genotype_state
+      )
     }
   )
 }
@@ -165,15 +187,30 @@ AquaticMosquitoModel <- R6::R6Class(
   'AquaticMosquitoModel',
   public = list(
     .model = NULL,
-    initialize = function(model) {
+    cube = NULL,
+    genotype_state = NULL,
+    initialize = function(model, cube = NULL, genotype_state = NULL) {
       self$.model <- model
+      self$cube <- cube
+      self$genotype_state <- genotype_state
     },
 
-    # The aquatic mosquito model doesn't have any state to save or restore (the
-    # state of the ODE is stored separately). We still provide these methods to
-    # conform to the expected interface.
-    save_state = function() { NULL },
-    restore_state = function(t, state) { }
+    # The aquatic ODE state is stored in the solver. We only persist the
+    # auxiliary genotype tracking state when present.
+    save_state = function() {
+      if (is.null(self$genotype_state)) {
+        return(NULL)
+      }
+      list(genotype_state = self$genotype_state)
+    },
+    restore_state = function(t, state) {
+      if (is.null(state)) {
+        return(invisible(NULL))
+      }
+      if (is.list(state) && !is.null(state$genotype_state)) {
+        self$genotype_state <- state$genotype_state
+      }
+    }
   )
 )
 

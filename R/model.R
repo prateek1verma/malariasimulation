@@ -99,8 +99,11 @@ run_simulation <- function(
 #' @param correlations correlation parameters
 #' @param initial_state the state from which the simulation is resumed
 #' @param restore_random_state if TRUE, restore the random number generator's state from the checkpoint.
-#' @return a list with two entries, one for the dataframe of results and one for the final
-#' simulation state.
+#' @return a list with `data` (dataframe of results) and `state` (final simulation state).
+#' When `parameters$cube` is provided in hybrid mosquito mode, an additional
+#' `mosquito_genotypes` entry is returned containing per-timestep female and male
+#' adult genotype counts and the egg viability fraction `V`, and the same arrays
+#' are attached as attributes on `data`.
 #' @export
 run_resumable_simulation <- function(
     timesteps,
@@ -117,6 +120,29 @@ run_resumable_simulation <- function(
     correlations <- get_correlation_parameters(parameters)
   }
   variables <- create_variables(parameters)
+  if (parameters$individual_mosquitoes && !is.null(parameters$cube)) {
+    cube_info <- cube_genotype_info(parameters$cube)
+    parameters$mosquito_genotype_history <- new.env(parent = emptyenv())
+    parameters$mosquito_genotype_history$female <- matrix(
+      0,
+      nrow = timesteps,
+      ncol = cube_info$G,
+      dimnames = list(NULL, cube_info$genotypesID)
+    )
+    parameters$mosquito_genotype_history$male <- matrix(
+      0,
+      nrow = timesteps,
+      ncol = cube_info$G,
+      dimnames = list(NULL, cube_info$genotypesID)
+    )
+    parameters$mosquito_genotype_history$V <- matrix(
+      1,
+      nrow = timesteps,
+      ncol = length(parameters$species),
+      dimnames = list(NULL, parameters$species)
+    )
+    parameters$mosquito_genotype_history$total_adults <- numeric(timesteps)
+  }
   events <- create_events(parameters)
   initialise_events(events, variables, parameters)
   renderer <- individual::Render$new(timesteps)
@@ -176,13 +202,39 @@ run_resumable_simulation <- function(
   )
 
   data <- renderer$to_dataframe()
+  genotype_outputs <- NULL
+  if (!is.null(parameters$mosquito_genotype_history)) {
+    genotype_outputs <- list(
+      female = parameters$mosquito_genotype_history$female,
+      male = parameters$mosquito_genotype_history$male,
+      V = parameters$mosquito_genotype_history$V,
+      total_adults = parameters$mosquito_genotype_history$total_adults
+    )
+  }
   if (!is.null(initial_state)) {
     # Drop the timesteps we didn't simulate from the data.
     # It would just be full of NA.
     data <- data[-(1:initial_state$timesteps),]
+    if (!is.null(genotype_outputs)) {
+      keep <- -(1:initial_state$timesteps)
+      genotype_outputs$female <- genotype_outputs$female[keep, , drop = FALSE]
+      genotype_outputs$male <- genotype_outputs$male[keep, , drop = FALSE]
+      genotype_outputs$V <- genotype_outputs$V[keep, , drop = FALSE]
+      genotype_outputs$total_adults <- genotype_outputs$total_adults[keep]
+    }
+  }
+  if (!is.null(genotype_outputs)) {
+    attr(data, "mosquito_genotype_counts_female") <- genotype_outputs$female
+    attr(data, "mosquito_genotype_counts_male") <- genotype_outputs$male
+    attr(data, "mosquito_genotype_V") <- genotype_outputs$V
+    attr(data, "mosquito_genotype_total_adults") <- genotype_outputs$total_adults
   }
 
-  list(data=data, state=final_state)
+  res <- list(data = data, state = final_state)
+  if (!is.null(genotype_outputs)) {
+    res$mosquito_genotypes <- genotype_outputs
+  }
+  res
 }
 
 #' @title Run a metapopulation model

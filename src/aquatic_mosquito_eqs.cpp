@@ -56,7 +56,7 @@ AquaticMosquitoModel::AquaticMosquitoModel(
   double mul,
   double dp,
   double mup,
-  size_t total_M,
+  double total_M,
   bool model_seasonality,
   double g0,
   std::vector<double> g,
@@ -99,7 +99,7 @@ Rcpp::XPtr<AquaticMosquitoModel> create_aquatic_mosquito_model(
     double mul,
     double dp,
     double mup,
-    size_t total_M,
+    double total_M,
     bool model_seasonality,
     double g0,
     std::vector<double> g,
@@ -135,7 +135,7 @@ Rcpp::XPtr<AquaticMosquitoModel> create_aquatic_mosquito_model(
 //[[Rcpp::export]]
 void aquatic_mosquito_model_update(
     Rcpp::XPtr<AquaticMosquitoModel> model,
-    size_t total_M,
+    double total_M,
     double f,
     double mum
 ) {
