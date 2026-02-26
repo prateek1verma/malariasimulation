@@ -332,6 +332,12 @@
 #' rates; default = TRUE
 #' * cube - optional MGDrivE-style inheritance cube for adult mosquito genotype
 #' tracking in hybrid mode; default = NULL
+#' * releases - optional mosquito genotype release configuration list (see
+#' \code{\link{set_releases}}); default = NULL
+#' * debug_genotypes - print compact debug tracing for mosquito genotype release /
+#' emergence timing (development/debug only); default = FALSE
+#' * debug_genotype_timesteps - optional integer timesteps to print when
+#' debug_genotypes is TRUE; default = NULL
 #'
 #' @export
 get_parameters <- function(overrides = list(), parasite = "falciparum") {
@@ -506,6 +512,9 @@ get_parameters <- function(overrides = list(), parasite = "falciparum") {
       mosquito_limit   = 100 * 1000,
       individual_mosquitoes = FALSE,
       cube = NULL,
+      releases = NULL,
+      debug_genotypes = FALSE,
+      debug_genotype_timesteps = NULL,
       human_population_timesteps = 0,
       r_tol = 1e-4,
       a_tol = 1e-4,

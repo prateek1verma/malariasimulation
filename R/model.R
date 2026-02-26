@@ -116,6 +116,9 @@ run_resumable_simulation <- function(
   if (is.null(parameters)) {
     parameters <- get_parameters()
   }
+  if (!is.null(parameters$releases) && is.null(parameters$releases_schedule)) {
+    parameters <- set_releases(parameters, parameters$releases)
+  }
   if (is.null(correlations)) {
     correlations <- get_correlation_parameters(parameters)
   }
@@ -142,6 +145,25 @@ run_resumable_simulation <- function(
       dimnames = list(NULL, parameters$species)
     )
     parameters$mosquito_genotype_history$total_adults <- numeric(timesteps)
+    parameters$mosquito_aquatic_genotype_history <- new.env(parent = emptyenv())
+    parameters$mosquito_aquatic_genotype_history$E <- matrix(
+      0,
+      nrow = timesteps,
+      ncol = cube_info$G,
+      dimnames = list(NULL, cube_info$genotypesID)
+    )
+    parameters$mosquito_aquatic_genotype_history$L <- matrix(
+      0,
+      nrow = timesteps,
+      ncol = cube_info$G,
+      dimnames = list(NULL, cube_info$genotypesID)
+    )
+    parameters$mosquito_aquatic_genotype_history$P <- matrix(
+      0,
+      nrow = timesteps,
+      ncol = cube_info$G,
+      dimnames = list(NULL, cube_info$genotypesID)
+    )
   }
   events <- create_events(parameters)
   initialise_events(events, variables, parameters)
@@ -203,6 +225,8 @@ run_resumable_simulation <- function(
 
   data <- renderer$to_dataframe()
   genotype_outputs <- NULL
+  aquatic_genotype_outputs <- NULL
+  release_schedule_output <- parameters$releases_schedule
   if (!is.null(parameters$mosquito_genotype_history)) {
     genotype_outputs <- list(
       female = parameters$mosquito_genotype_history$female,
@@ -211,16 +235,36 @@ run_resumable_simulation <- function(
       total_adults = parameters$mosquito_genotype_history$total_adults
     )
   }
+  if (!is.null(parameters$mosquito_aquatic_genotype_history)) {
+    aquatic_genotype_outputs <- list(
+      E = parameters$mosquito_aquatic_genotype_history$E,
+      L = parameters$mosquito_aquatic_genotype_history$L,
+      P = parameters$mosquito_aquatic_genotype_history$P
+    )
+  }
   if (!is.null(initial_state)) {
     # Drop the timesteps we didn't simulate from the data.
     # It would just be full of NA.
     data <- data[-(1:initial_state$timesteps),]
+    if (!is.null(release_schedule_output) && nrow(release_schedule_output) > 0) {
+      release_schedule_output <- release_schedule_output[
+        release_schedule_output$timestep > initial_state$timesteps,
+        ,
+        drop = FALSE
+      ]
+    }
     if (!is.null(genotype_outputs)) {
       keep <- -(1:initial_state$timesteps)
       genotype_outputs$female <- genotype_outputs$female[keep, , drop = FALSE]
       genotype_outputs$male <- genotype_outputs$male[keep, , drop = FALSE]
       genotype_outputs$V <- genotype_outputs$V[keep, , drop = FALSE]
       genotype_outputs$total_adults <- genotype_outputs$total_adults[keep]
+    }
+    if (!is.null(aquatic_genotype_outputs)) {
+      keep <- -(1:initial_state$timesteps)
+      aquatic_genotype_outputs$E <- aquatic_genotype_outputs$E[keep, , drop = FALSE]
+      aquatic_genotype_outputs$L <- aquatic_genotype_outputs$L[keep, , drop = FALSE]
+      aquatic_genotype_outputs$P <- aquatic_genotype_outputs$P[keep, , drop = FALSE]
     }
   }
   if (!is.null(genotype_outputs)) {
@@ -229,10 +273,38 @@ run_resumable_simulation <- function(
     attr(data, "mosquito_genotype_V") <- genotype_outputs$V
     attr(data, "mosquito_genotype_total_adults") <- genotype_outputs$total_adults
   }
+  if (!is.null(aquatic_genotype_outputs)) {
+    attr(data, "mosquito_aquatic_genotype_E") <- aquatic_genotype_outputs$E
+    attr(data, "mosquito_aquatic_genotype_L") <- aquatic_genotype_outputs$L
+    attr(data, "mosquito_aquatic_genotype_P") <- aquatic_genotype_outputs$P
+  }
+  if (!is.null(release_schedule_output)) {
+    if (nrow(release_schedule_output) > 0 && "timestep" %in% names(data)) {
+      for (sp in unique(release_schedule_output$species)) {
+        col <- paste0("n_released_", sp)
+        data[[col]] <- 0L
+        sp_rows <- release_schedule_output$species == sp
+        counts_by_t <- tapply(
+          release_schedule_output$count[sp_rows],
+          release_schedule_output$timestep[sp_rows],
+          sum
+        )
+        if (length(counts_by_t) > 0) {
+          t_idx <- match(as.integer(names(counts_by_t)), data$timestep)
+          valid <- !is.na(t_idx)
+          data[[col]][t_idx[valid]] <- as.integer(counts_by_t[valid])
+        }
+      }
+    }
+    attr(data, "mosquito_release_schedule") <- release_schedule_output
+  }
 
   res <- list(data = data, state = final_state)
   if (!is.null(genotype_outputs)) {
     res$mosquito_genotypes <- genotype_outputs
+  }
+  if (!is.null(aquatic_genotype_outputs)) {
+    res$mosquito_aquatic_genotypes <- aquatic_genotype_outputs
   }
   res
 }

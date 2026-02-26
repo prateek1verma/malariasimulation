@@ -112,6 +112,18 @@ simulate_bites <- function(
       V_by_species <- rep(1, length(parameters$species))
     }
   }
+  if (parameters$individual_mosquitoes && genotype_tracking && genotype_debug_enabled(parameters, timestep)) {
+    for (s_i in seq_along(parameters$species)) {
+      genotype_debug_log_counts(
+        parameters,
+        timestep,
+        "BITE_START",
+        parameters$species[[s_i]],
+        genotype_debug_species_counts(variables, models, parameters, s_i),
+        extra = "visible state at start of biting (after release process; emergence females may still be queued)"
+      )
+    }
+  }
   
   EIR <- 0
   
@@ -203,6 +215,7 @@ simulate_bites <- function(
         pgv <- calc_pg_V_from_cube(models[[s_i]]$cube, female_counts, male_counts)
         V_by_species[[s_i]] <- pgv$V
         effective_total_M <- effective_total_M * pgv$V
+        aquatic_mosquito_model_set_egg_proportions(models[[s_i]]$.model, as.numeric(pgv$p))
         female_geno_totals <- female_geno_totals + female_counts
         male_geno_totals <- male_geno_totals + male_counts
         mu_by_species[[s_i]] <- mu
@@ -249,6 +262,22 @@ simulate_bites <- function(
       history$male[timestep, ] <- male_geno_totals
       history$V[timestep, ] <- V_by_species
       history$total_adults[timestep] <- sum(female_geno_totals + male_geno_totals)
+      if (genotype_debug_enabled(parameters, timestep)) {
+        for (s_i in seq_along(parameters$species)) {
+          genotype_debug_log(
+            parameters,
+            timestep,
+            "HWRITE",
+            parameters$species[[s_i]],
+            sprintf(
+              "row=%d writes visible counts before male death update: F{%s} M{%s}",
+              timestep,
+              genotype_debug_fmt_counts(female_geno_totals, names(parameters$mosquito_genotype_history$female[timestep, ])),
+              genotype_debug_fmt_counts(male_geno_totals, names(parameters$mosquito_genotype_history$male[timestep, ]))
+            )
+          )
+        }
+      }
     }
     for (s_i in seq_along(parameters$species)) {
       if (is.null(models[[s_i]]$genotype_state)) {
@@ -263,6 +292,16 @@ simulate_bites <- function(
         male_counts <- stats::rbinom(length(male_counts), size = male_counts, prob = 1 - death_prob)
       }
       models[[s_i]]$genotype_state$male_counts <- male_counts
+      if (genotype_debug_enabled(parameters, timestep)) {
+        genotype_debug_log_counts(
+          parameters,
+          timestep,
+          "AFTER_MALE_DEATH",
+          parameters$species[[s_i]],
+          genotype_debug_species_counts(variables, models, parameters, s_i),
+          extra = "female deaths are scheduled via mosquito_death event (delay=0)"
+        )
+      }
     }
   }
 

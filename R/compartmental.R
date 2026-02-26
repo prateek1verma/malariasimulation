@@ -41,6 +41,13 @@ parameterise_mosquito_models <- function(parameters, timesteps) {
         parameters$blood_meal_rates[[i]],
         parameters$rainfall_floor
       )
+
+      if (parameters$individual_mosquitoes && !is.null(parameters$cube)) {
+        cube_info <- cube_genotype_info(parameters$cube)
+        egg_p <- rep.int(0, cube_info$G)
+        egg_p[[cube_info$wild_type_index]] <- 1
+        aquatic_mosquito_model_set_egg_proportions(growth_model, egg_p)
+      }
       
       if (!parameters$individual_mosquitoes) {
         susceptible <- initial_mosquito_counts(
@@ -103,9 +110,23 @@ parameterise_solvers <- function(models, parameters) {
           ))
         )
       }
+      init_aquatic <- init[ODE_INDICES]
+      if (!is.null(parameters$cube)) {
+        cube_info <- cube_genotype_info(parameters$cube)
+        if (cube_info$G > 1L) {
+          init_aquatic <- rep.int(0, 3L * cube_info$G)
+          e_idx <- aquatic_genotype_stage_indices(cube_info$G, "E")
+          l_idx <- aquatic_genotype_stage_indices(cube_info$G, "L")
+          p_idx <- aquatic_genotype_stage_indices(cube_info$G, "P")
+          wt <- cube_info$wild_type_index
+          init_aquatic[[e_idx[[wt]]]] <- init[[ODE_INDICES[["E"]]]]
+          init_aquatic[[l_idx[[wt]]]] <- init[[ODE_INDICES[["L"]]]]
+          init_aquatic[[p_idx[[wt]]]] <- init[[ODE_INDICES[["P"]]]]
+        }
+      }
       Solver$new(create_aquatic_solver(
         models[[i]]$.model,
-        init[ODE_INDICES],
+        init_aquatic,
         parameters$r_tol,
         parameters$a_tol,
         parameters$ode_max_steps
@@ -122,21 +143,55 @@ create_compartmental_rendering_process <- function(renderer, solvers, parameters
   }
   
   function(timestep) {
-    counts <- rep(0, length(indices))
+    aquatic_history <- NULL
+    cube_info <- NULL
+    aquatic_E <- aquatic_L <- aquatic_P <- NULL
+    if (parameters$individual_mosquitoes && !is.null(parameters$cube) &&
+        !is.null(parameters$mosquito_aquatic_genotype_history)) {
+      cube_info <- cube_genotype_info(parameters$cube)
+      aquatic_history <- parameters$mosquito_aquatic_genotype_history
+      aquatic_E <- rep.int(0, cube_info$G)
+      aquatic_L <- rep.int(0, cube_info$G)
+      aquatic_P <- rep.int(0, cube_info$G)
+    }
     for (s_i in seq_along(solvers)) {
       if (parameters$species_proportions[[s_i]] > 0) {
         row <- solvers[[s_i]]$get_states()
       } else {
-        row <- rep(0, length(indices))
+        row <- rep(0, if (is.null(cube_info)) length(indices) else 3L * cube_info$G)
       }
-      for (i in seq_along(indices)) {
-        renderer$render(
-          paste0(names(indices)[[i]], '_', parameters$species[[s_i]], '_count'),
-          row[[i]],
-          timestep
-        )
+      if (parameters$individual_mosquitoes) {
+        stage_totals <- if (is.null(parameters$cube)) {
+          setNames(row[ODE_INDICES], names(ODE_INDICES))
+        } else {
+          aquatic_stage_totals(row, parameters$cube)
+        }
+        for (stage_name in names(ODE_INDICES)) {
+          renderer$render(
+            paste0(stage_name, '_', parameters$species[[s_i]], '_count'),
+            stage_totals[[stage_name]],
+            timestep
+          )
+        }
+        if (!is.null(aquatic_history)) {
+          aquatic_E <- aquatic_E + aquatic_stage_values_by_genotype(row, parameters$cube, "E")
+          aquatic_L <- aquatic_L + aquatic_stage_values_by_genotype(row, parameters$cube, "L")
+          aquatic_P <- aquatic_P + aquatic_stage_values_by_genotype(row, parameters$cube, "P")
+        }
+      } else {
+        for (i in seq_along(indices)) {
+          renderer$render(
+            paste0(names(indices)[[i]], '_', parameters$species[[s_i]], '_count'),
+            row[[i]],
+            timestep
+          )
+        }
       }
-      counts <- counts + row
+    }
+    if (!is.null(aquatic_history)) {
+      aquatic_history$E[timestep, ] <- aquatic_E
+      aquatic_history$L[timestep, ] <- aquatic_L
+      aquatic_history$P[timestep, ] <- aquatic_P
     }
   }
 }

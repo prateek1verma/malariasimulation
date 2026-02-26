@@ -29,6 +29,10 @@ aquatic_mosquito_model_update <- function(model, total_M, f, mum) {
     invisible(.Call(`_malariasimulationGD_aquatic_mosquito_model_update`, model, total_M, f, mum))
 }
 
+aquatic_mosquito_model_set_egg_proportions <- function(model, egg_proportions) {
+    invisible(.Call(`_malariasimulationGD_aquatic_mosquito_model_set_egg_proportions`, model, egg_proportions))
+}
+
 create_aquatic_solver <- function(model, init, r_tol, a_tol, max_steps) {
     .Call(`_malariasimulationGD_create_aquatic_solver`, model, init, r_tol, a_tol, max_steps)
 }
@@ -104,4 +108,3 @@ bitset_index_cpp <- function(a, b) {
 fast_weighted_sample <- function(size, probs) {
     .Call(`_malariasimulationGD_fast_weighted_sample`, size, probs)
 }
-

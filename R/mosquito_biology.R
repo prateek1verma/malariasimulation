@@ -279,6 +279,74 @@ adult_female_genotype_counts_by_species <- function(variables, species_name, G) 
   tabulate(variables$geno_id$get_values(species_index), nbins = G)
 }
 
+uses_genotype_resolved_aquatic_states <- function(solver_states, cube) {
+  if (is.null(cube)) {
+    return(FALSE)
+  }
+  cube_info <- cube_genotype_info(cube)
+  length(solver_states) == 3L * cube_info$G && cube_info$G > 1L
+}
+
+aquatic_genotype_stage_indices <- function(G, stage) {
+  stage_offsets <- c(E = 1L, L = 2L, P = 3L)
+  if (!(stage %in% names(stage_offsets))) {
+    stop("stage must be one of 'E', 'L', or 'P'")
+  }
+  seq.int(stage_offsets[[stage]], by = 3L, length.out = G)
+}
+
+aquatic_stage_values_by_genotype <- function(solver_states, cube, stage) {
+  if (is.null(cube)) {
+    stop("cube is required for genotype-resolved aquatic stage values")
+  }
+  cube_info <- cube_genotype_info(cube)
+  if (!uses_genotype_resolved_aquatic_states(solver_states, cube)) {
+    out <- rep.int(0, cube_info$G)
+    out[[cube_info$wild_type_index]] <- solver_states[[ODE_INDICES[[stage]]]]
+    names(out) <- cube_info$genotypesID
+    return(out)
+  }
+  out <- solver_states[aquatic_genotype_stage_indices(cube_info$G, stage)]
+  names(out) <- cube_info$genotypesID
+  out
+}
+
+aquatic_stage_total <- function(solver_states, cube, stage) {
+  if (is.null(cube) || !uses_genotype_resolved_aquatic_states(solver_states, cube)) {
+    return(solver_states[[ODE_INDICES[[stage]]]])
+  }
+  sum(aquatic_stage_values_by_genotype(solver_states, cube, stage))
+}
+
+aquatic_stage_totals <- function(solver_states, cube) {
+  c(
+    E = aquatic_stage_total(solver_states, cube, "E"),
+    L = aquatic_stage_total(solver_states, cube, "L"),
+    P = aquatic_stage_total(solver_states, cube, "P")
+  )
+}
+
+cube_phi_vector <- function(cube, G) {
+  phi <- NULL
+  if (!is.null(cube)) {
+    phi <- cube$phi
+  }
+  if (is.null(phi)) {
+    return(rep(0.5, G))
+  }
+  phi <- as.numeric(phi)
+  if (length(phi) == 1L) {
+    phi <- rep(phi, G)
+  }
+  if (length(phi) != G) {
+    stop("cube$phi must have length 1 or length(cube$genotypesID)")
+  }
+  if (any(is.na(phi)) || any(phi < 0) || any(phi > 1)) {
+    stop("cube$phi entries must be in [0, 1]")
+  }
+  phi
+}
+
 #' @title Calculate offspring genotype proportions and viability from cube
 #' @param cube MGDrivE-style inheritance cube
 #' @param female_counts adult female counts by genotype
@@ -360,13 +428,27 @@ create_mosquito_emergence_process <- function(
   species_names <- parameters$species
   rate <- .5 * 1 / parameters$dpl
   function(timestep) {
+    solver_rows <- lapply(solvers, function(solver) solver$get_states())
     p_counts <- vnapply(
-      solvers,
-      function(solver) {
-        solver$get_states()[[ODE_INDICES[['P']]]]
+      seq_along(solvers),
+      function(i) {
+        aquatic_stage_total(solver_rows[[i]], models[[i]]$cube, "P")
       }
     )
-    n <- sum(p_counts) * rate
+    n <- 0
+    for (i in seq_along(species_names)) {
+      if (!is.null(models[[i]]$cube) &&
+          uses_genotype_resolved_aquatic_states(solver_rows[[i]], models[[i]]$cube)) {
+        cube_info <- cube_genotype_info(models[[i]]$cube)
+        p_by_g <- aquatic_stage_values_by_genotype(solver_rows[[i]], models[[i]]$cube, "P")
+        phi <- cube_phi_vector(models[[i]]$cube, cube_info$G)
+        n_total_by_g <- pmax(0L, as.integer(round(as.numeric(p_by_g) / parameters$dpl)))
+        n_female_by_g <- pmax(0L, pmin(n_total_by_g, as.integer(round(n_total_by_g * phi))))
+        n <- n + sum(n_female_by_g)
+      } else {
+        n <- n + p_counts[[i]] * rate
+      }
+    }
     available <- state$get_size_of('NonExistent')
     if (n > available) {
       stop(paste0(
@@ -380,28 +462,85 @@ create_mosquito_emergence_process <- function(
     non_existent <- state$get_index_of('NonExistent')
     latest <- 1
     for (i in seq_along(species_names)) {
-      to_hatch <- p_counts[[i]] * rate
-      hatched <- bitset_at(non_existent, seq(latest, latest + to_hatch))
-      n_hatched <- hatched$size()
+      solver_states <- solver_rows[[i]]
+      if (!is.null(models[[i]]$cube) &&
+          uses_genotype_resolved_aquatic_states(solver_states, models[[i]]$cube)) {
+        cube_info <- cube_genotype_info(models[[i]]$cube)
+        p_by_g <- aquatic_stage_values_by_genotype(solver_states, models[[i]]$cube, "P")
+        phi <- cube_phi_vector(models[[i]]$cube, cube_info$G)
+        n_total_by_g <- pmax(0L, as.integer(round(as.numeric(p_by_g) / parameters$dpl)))
+        n_female_by_g <- pmax(0L, pmin(n_total_by_g, as.integer(round(n_total_by_g * phi))))
+        n_male_by_g <- n_total_by_g - n_female_by_g
 
-      if (!is.null(models[[i]]$cube) && n_hatched > 0) {
+        for (g in seq_len(cube_info$G)) {
+          n_female <- n_female_by_g[[g]]
+          if (n_female > 0L) {
+            hatched <- bitset_at(non_existent, seq.int(latest, latest + n_female - 1L))
+            geno_id$queue_update(g, hatched)
+            state$queue_update('Sm', hatched)
+            species$queue_update(species_names[[i]], hatched)
+            latest <- latest + n_female
+          }
+        }
+        models[[i]]$genotype_state$male_counts <- models[[i]]$genotype_state$male_counts + n_male_by_g
+      } else {
+        to_hatch <- p_counts[[i]] * rate
+        hatched <- bitset_at(non_existent, seq(latest, latest + to_hatch))
+        n_hatched <- hatched$size()
+
+        if (!is.null(models[[i]]$cube) && n_hatched > 0) {
         cube_info <- cube_genotype_info(models[[i]]$cube)
         female_counts <- adult_female_genotype_counts_by_species(
           variables,
           species_names[[i]],
           cube_info$G
         )
+        names(female_counts) <- cube_info$genotypesID
         male_counts <- models[[i]]$genotype_state$male_counts
+        if (is.null(names(male_counts))) {
+          names(male_counts) <- cube_info$genotypesID
+        }
         pgv <- calc_pg_V_from_cube(models[[i]]$cube, female_counts, male_counts)
-        geno_id$queue_update(sample_genotype_ids(n_hatched, pgv$p), hatched)
-        models[[i]]$genotype_state$male_counts <- male_counts + sample_genotype_counts(n_hatched, pgv$p)
-      } else if (n_hatched > 0) {
-        geno_id$queue_update(1L, hatched)
-      }
+        names(pgv$p) <- cube_info$genotypesID
+        female_assigned <- sample_genotype_counts(n_hatched, pgv$p)
+        names(female_assigned) <- cube_info$genotypesID
+        male_assigned <- sample_genotype_counts(n_hatched, pgv$p)
+        names(male_assigned) <- cube_info$genotypesID
+        geno_id$queue_update(rep.int(seq_along(female_assigned), female_assigned), hatched)
+        models[[i]]$genotype_state$male_counts <- male_counts + male_assigned
+        if (genotype_debug_enabled(parameters, timestep)) {
+          genotype_debug_log(
+            parameters,
+            timestep,
+            "EMERGE_PG",
+            species_names[[i]],
+            sprintf(
+              "p={%s} n_new(total=%d,female=%d,male=%d) female_assigned={%s} male_assigned={%s}",
+              genotype_debug_fmt_counts(pgv$p),
+              as.integer(2 * n_hatched),
+              as.integer(n_hatched),
+              as.integer(n_hatched),
+              genotype_debug_fmt_counts(female_assigned),
+              genotype_debug_fmt_counts(male_assigned)
+            )
+          )
+          genotype_debug_log_counts(
+            parameters,
+            timestep,
+            "AFTER_EMERGE_VISIBLE",
+            species_names[[i]],
+            genotype_debug_species_counts(variables, models, parameters, i),
+            extra = "female_assigned queued (not yet visible this timestep)"
+          )
+        }
+        } else if (n_hatched > 0) {
+          geno_id$queue_update(1L, hatched)
+        }
 
-      state$queue_update('Sm', hatched)
-      species$queue_update(species_names[[i]], hatched)
-      latest <- latest + to_hatch + 1
+        state$queue_update('Sm', hatched)
+        species$queue_update(species_names[[i]], hatched)
+        latest <- latest + to_hatch + 1
+      }
     }
   }
 }

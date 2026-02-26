@@ -80,6 +80,13 @@ create_processes <- function(
   if (parameters$individual_mosquitoes) {
     processes <- c(
       processes,
+      mosquito_release_process = create_mosquito_release_process(
+        solvers,
+        models,
+        variables,
+        events,
+        parameters
+      ),
       mosquito_emergence_process = create_mosquito_emergence_process(
         solvers,
         models,

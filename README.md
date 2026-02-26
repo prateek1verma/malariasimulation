@@ -66,6 +66,45 @@ output <- run_simulation(100)
 
 Please see [vignettes](https://mrc-ide.github.io/malariasimulationGD/articles/Model.html) for more detailed use.
 
+### Scheduled mosquito genotype releases (hybrid mode)
+
+Hybrid mosquito mode (`individual_mosquitoes = TRUE`) supports scheduled adult
+mosquito genotype releases using an MGDrivE-style inheritance cube plus a simple
+release specification. Releases are disabled by default.
+
+```R
+library(malariasimulationGD)
+library(MGDrivE)
+
+simparams <- get_parameters(list(
+  individual_mosquitoes = TRUE,
+  total_M = 200,
+  init_foim = 0
+))
+simparams <- parameterise_total_M(simparams, simparams$total_M)
+
+cube_3 <- cubeMendelian(gtype = c("AA", "Aa", "aa"))
+cube_3$releaseType <- "aa" # default genotype used by set_releases()
+simparams$cube <- cube_3
+
+releases <- list(
+  releasesStart = 100,
+  releasesNumber = 5,
+  releasesInterval = 0, # 0 means daily spacing
+  releaseCount = 50,
+  releaseSex = "M"      # "M", "F", or "both"
+)
+
+simparams <- set_releases(simparams, releases)
+out <- run_simulation(200, simparams)
+
+# Expanded schedule attached to the output data.frame:
+attr(out, "mosquito_release_schedule")
+```
+
+If `releaseGenotype` is omitted, `set_releases()` defaults to `cube$releaseType`
+and validates it against `cube$genotypesID`.
+
 ## Code organisation
 
 *model.R* - is the entry point for the model. It creates the different

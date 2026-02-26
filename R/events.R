@@ -102,6 +102,32 @@ attach_event_listeners <- function(
 
     events$mosquito_death$add_listener(
       function(timestep, target) {
+        if (genotype_debug_enabled(parameters, timestep) && !is.null(parameters$cube)) {
+          cube_info <- cube_genotype_info(parameters$cube)
+          geno_deaths <- tabulate(variables$geno_id$get_values(target), nbins = cube_info$G)
+          names(geno_deaths) <- cube_info$genotypesID
+          species_name <- if (length(parameters$species) >= 1L) {
+            parameters$species[[1]]
+          } else {
+            "unknown"
+          }
+          pre_female <- adult_female_genotype_counts_by_species(variables, species_name, cube_info$G)
+          names(pre_female) <- cube_info$genotypesID
+          post_est <- pre_female - geno_deaths
+          genotype_debug_log(
+            parameters,
+            timestep,
+            "MOSQ_DEATH_EVT",
+            species_name,
+            sprintf(
+              "female_deaths=%d by_genotype={%s} F_pre_visible={%s} F_post_est_after_commit={%s}",
+              target$size(),
+              genotype_debug_fmt_counts(geno_deaths),
+              genotype_debug_fmt_counts(pre_female),
+              genotype_debug_fmt_counts(post_est)
+            )
+          )
+        }
         variables$mosquito_state$queue_update('NonExistent', target)
         events$mosquito_infection$clear_schedule(target)
         renderer$render('mosquito_deaths', target$size(), timestep)

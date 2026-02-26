@@ -118,6 +118,17 @@ BEGIN_RCPP
     return R_NilValue;
 END_RCPP
 }
+// aquatic_mosquito_model_set_egg_proportions
+void aquatic_mosquito_model_set_egg_proportions(Rcpp::XPtr<AquaticMosquitoModel> model, std::vector<double> egg_proportions);
+RcppExport SEXP _malariasimulationGD_aquatic_mosquito_model_set_egg_proportions(SEXP modelSEXP, SEXP egg_proportionsSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::XPtr<AquaticMosquitoModel> >::type model(modelSEXP);
+    Rcpp::traits::input_parameter< std::vector<double> >::type egg_proportions(egg_proportionsSEXP);
+    aquatic_mosquito_model_set_egg_proportions(model, egg_proportions);
+    return R_NilValue;
+END_RCPP
+}
 // create_aquatic_solver
 Rcpp::XPtr<Solver> create_aquatic_solver(Rcpp::XPtr<AquaticMosquitoModel> model, std::vector<double> init, double r_tol, double a_tol, size_t max_steps);
 RcppExport SEXP _malariasimulationGD_create_aquatic_solver(SEXP modelSEXP, SEXP initSEXP, SEXP r_tolSEXP, SEXP a_tolSEXP, SEXP max_stepsSEXP) {
@@ -358,6 +369,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_malariasimulationGD_create_adult_solver", (DL_FUNC) &_malariasimulationGD_create_adult_solver, 5},
     {"_malariasimulationGD_create_aquatic_mosquito_model", (DL_FUNC) &_malariasimulationGD_create_aquatic_mosquito_model, 18},
     {"_malariasimulationGD_aquatic_mosquito_model_update", (DL_FUNC) &_malariasimulationGD_aquatic_mosquito_model_update, 4},
+    {"_malariasimulationGD_aquatic_mosquito_model_set_egg_proportions", (DL_FUNC) &_malariasimulationGD_aquatic_mosquito_model_set_egg_proportions, 2},
     {"_malariasimulationGD_create_aquatic_solver", (DL_FUNC) &_malariasimulationGD_create_aquatic_solver, 5},
     {"_malariasimulationGD_carrying_capacity", (DL_FUNC) &_malariasimulationGD_carrying_capacity, 8},
     {"_malariasimulationGD_eggs_laid", (DL_FUNC) &_malariasimulationGD_eggs_laid, 3},

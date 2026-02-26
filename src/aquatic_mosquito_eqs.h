@@ -58,6 +58,7 @@ struct AquaticMosquitoModel {
   double mum; //adult mortality rate
   double f; //biting rate
   double rainfall_floor; //minimum rainfall
+  std::vector<double> egg_proportions; //offspring genotype proportions for aquatic egg input (optional)
   
   AquaticMosquitoModel(
     double beta,

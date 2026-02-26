@@ -24,15 +24,26 @@ test_that("hybrid mosquito genotype tracking is backward compatible and consiste
   set.seed(123)
   run_cube1 <- malariasimulationGD::run_resumable_simulation(timesteps, parameters = params_cube1)
   cube1_df <- run_cube1$data
+  aq1_E <- attr(cube1_df, "mosquito_aquatic_genotype_E")
+  aq1_L <- attr(cube1_df, "mosquito_aquatic_genotype_L")
+  aq1_P <- attr(cube1_df, "mosquito_aquatic_genotype_P")
 
-  expect_equal(cube1_df$E_gamb_count, baseline_df$E_gamb_count, tolerance = 0)
-  expect_equal(cube1_df$L_gamb_count, baseline_df$L_gamb_count, tolerance = 0)
-  expect_equal(cube1_df$P_gamb_count, baseline_df$P_gamb_count, tolerance = 0)
+  expect_identical(names(cube1_df), names(baseline_df))
+  for (nm in names(baseline_df)) {
+    expect_identical(cube1_df[[nm]], baseline_df[[nm]], info = paste("column", nm))
+  }
   expect_equal(
     cube1_df$Sm_gamb_count + cube1_df$Pm_gamb_count + cube1_df$Im_gamb_count,
     baseline_adults,
     tolerance = 0
   )
+  expect_false(is.null(aq1_E))
+  expect_false(is.null(aq1_L))
+  expect_false(is.null(aq1_P))
+  expect_identical(dim(aq1_E), c(as.integer(timesteps), 1L))
+  expect_equal(drop(aq1_E[, 1]), cube1_df$E_gamb_count, tolerance = 0)
+  expect_equal(drop(aq1_L[, 1]), cube1_df$L_gamb_count, tolerance = 0)
+  expect_equal(drop(aq1_P[, 1]), cube1_df$P_gamb_count, tolerance = 0)
 
   cube3 <- MGDrivE::cubeMendelian(gtype = c("AA", "Aa", "aa"))
   params_cube3 <- base_params
@@ -42,6 +53,9 @@ test_that("hybrid mosquito genotype tracking is backward compatible and consiste
   run_cube3 <- malariasimulationGD::run_resumable_simulation(timesteps, parameters = params_cube3)
   geno <- run_cube3$mosquito_genotypes
   cube3_df <- run_cube3$data
+  aq3_E <- attr(cube3_df, "mosquito_aquatic_genotype_E")
+  aq3_L <- attr(cube3_df, "mosquito_aquatic_genotype_L")
+  aq3_P <- attr(cube3_df, "mosquito_aquatic_genotype_P")
 
   expect_false(is.null(geno))
   expect_identical(colnames(geno$female), cube3$genotypesID)
@@ -56,4 +70,152 @@ test_that("hybrid mosquito genotype tracking is backward compatible and consiste
     cube3_df$Sm_gamb_count + cube3_df$Pm_gamb_count + cube3_df$Im_gamb_count,
     tolerance = 0
   )
+  expect_false(is.null(aq3_E))
+  expect_false(is.null(aq3_L))
+  expect_false(is.null(aq3_P))
+  expect_equal(rowSums(aq3_E), cube3_df$E_gamb_count, tolerance = 0)
+  expect_equal(rowSums(aq3_L), cube3_df$L_gamb_count, tolerance = 0)
+  expect_equal(rowSums(aq3_P), cube3_df$P_gamb_count, tolerance = 0)
+  expect_true(all(aq3_E[, c("Aa", "aa"), drop = FALSE] == 0))
+  expect_true(all(aq3_L[, c("Aa", "aa"), drop = FALSE] == 0))
+  expect_true(all(aq3_P[, c("Aa", "aa"), drop = FALSE] == 0))
+  expect_true(all(geno$female[, c("Aa", "aa"), drop = FALSE] == 0))
+  expect_true(all(geno$male[, c("Aa", "aa"), drop = FALSE] == 0))
+  expect_null(attr(cube3_df, "mosquito_release_schedule"))
+})
+
+test_that("scheduled male genotype release has delayed adult genotype effects with genotype-resolved aquatic states", {
+  skip_if_not_installed("MGDrivE")
+
+  params <- malariasimulationGD::get_parameters(list(
+    individual_mosquitoes = TRUE,
+    human_population = 50,
+    total_M = 200,
+    init_foim = 0,
+    progress_bar = FALSE
+  ))
+  params <- malariasimulationGD::parameterise_total_M(params, params$total_M)
+
+  cube3 <- MGDrivE::cubeMendelian(gtype = c("AA", "Aa", "aa"))
+  cube3$releaseType <- "aa"
+  params$cube <- cube3
+  params <- malariasimulationGD::set_releases(params, list(
+    releasesStart = 20,
+    releasesNumber = 1,
+    releaseCount = 200,
+    releaseSex = "M"
+  ))
+
+  set.seed(321)
+  out <- malariasimulationGD::run_resumable_simulation(50, parameters = params)
+  geno <- out$mosquito_genotypes
+  rel <- attr(out$data, "mosquito_release_schedule")
+  aqE <- attr(out$data, "mosquito_aquatic_genotype_E")
+  aqL <- attr(out$data, "mosquito_aquatic_genotype_L")
+  aqP <- attr(out$data, "mosquito_aquatic_genotype_P")
+
+  expect_false(is.null(rel))
+  expect_identical(
+    rel,
+    data.frame(
+      timestep = 20L,
+      species = "gamb",
+      sex = "M",
+      genotype = "aa",
+      count = 200L,
+      stringsAsFactors = FALSE
+    )
+  )
+  expect_equal(out$data$n_released_gamb[20], 200)
+  expect_equal(unname(geno$male[20, "aa"]), 200)
+  expect_equal(unname(geno$male[20, "Aa"]), 0)
+  expect_true(all(geno$female[20, c("Aa", "aa"), drop = FALSE] == 0))
+
+  # Non-WT aquatic stages can appear immediately via mating (after the day-20 ODE
+  # step), but there should be no same-day adult Aa creation from the old p_g
+  # emergence shortcut.
+  expect_true(any(aqE[20:nrow(aqE), c("Aa", "aa"), drop = FALSE] > 0))
+
+  adult_Aa <- geno$female[, "Aa"] + geno$male[, "Aa"]
+  first_Aa_day <- which(adult_Aa > 0)[1]
+  expect_false(is.na(first_Aa_day))
+  expect_gt(first_Aa_day, 20)
+})
+
+test_that("set_releases validates release genotype against cube genotypes", {
+  skip_if_not_installed("MGDrivE")
+
+  params <- malariasimulationGD::get_parameters(list(
+    individual_mosquitoes = TRUE,
+    progress_bar = FALSE
+  ))
+  cube3 <- MGDrivE::cubeMendelian(gtype = c("AA", "Aa", "aa"))
+  params$cube <- cube3
+
+  expect_error(
+    malariasimulationGD::set_releases(params, list(
+      releasesStart = 5,
+      releaseCount = 10,
+      releaseGenotype = "ZZ"
+    )),
+    "releaseGenotype 'ZZ' is not in cube\\$genotypesID"
+  )
+})
+
+test_that("female releases can expand mosquito capacity beyond mosquito_limit", {
+  skip_if_not_installed("MGDrivE")
+
+  params <- malariasimulationGD::get_parameters(list(
+    individual_mosquitoes = TRUE,
+    human_population = 20,
+    total_M = 5,
+    init_foim = 0,
+    mosquito_limit = 20,
+    progress_bar = FALSE
+  ))
+  params <- malariasimulationGD::parameterise_total_M(params, params$total_M)
+
+  cube3 <- MGDrivE::cubeMendelian(gtype = c("AA", "Aa", "aa"))
+  cube3$releaseType <- "aa"
+  params$cube <- cube3
+  params <- malariasimulationGD::set_releases(params, list(
+    releasesStart = 2,
+    releaseCount = 200,
+    releaseSex = "F"
+  ))
+
+  set.seed(456)
+  out <- malariasimulationGD::run_resumable_simulation(4, parameters = params)
+
+  expect_equal(out$data$n_released_gamb[2], 200)
+  expect_equal(unname(out$mosquito_genotypes$female[2, "aa"]), 200)
+  expect_gt(out$data$Sm_gamb_count[2] + out$data$Pm_gamb_count[2] + out$data$Im_gamb_count[2], 150)
+})
+
+test_that("sterile tau (all zero) yields zero egg input and aquatic collapse", {
+  skip_if_not_installed("MGDrivE")
+
+  params <- malariasimulationGD::get_parameters(list(
+    individual_mosquitoes = TRUE,
+    human_population = 50,
+    total_M = 200,
+    init_foim = 0,
+    progress_bar = FALSE
+  ))
+  params <- malariasimulationGD::parameterise_total_M(params, params$total_M)
+
+  cube3 <- MGDrivE::cubeMendelian(gtype = c("AA", "Aa", "aa"))
+  cube3$tau <- array(0, dim = dim(cube3$ih))
+  params$cube <- cube3
+
+  set.seed(789)
+  out <- malariasimulationGD::run_resumable_simulation(80, parameters = params)
+  aqE <- attr(out$data, "mosquito_aquatic_genotype_E")
+  aqL <- attr(out$data, "mosquito_aquatic_genotype_L")
+  aqP <- attr(out$data, "mosquito_aquatic_genotype_P")
+
+  aquatic_total <- rowSums(aqE) + rowSums(aqL) + rowSums(aqP)
+  expect_true(all(aquatic_total >= 0))
+  expect_lt(tail(aquatic_total, 1), aquatic_total[1])
+  expect_lt(tail(aquatic_total, 1) / aquatic_total[1], 0.01)
 })
