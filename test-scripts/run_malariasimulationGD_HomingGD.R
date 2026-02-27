@@ -97,7 +97,7 @@ release_vlines <- function(rel_days) {
 # 1) Cube (arbitrary G via MGDrivE)
 # -------------------------
 # Example cube: Homing 1RA (arbitrary genotype set comes from MGDrivE)
-cube <- cubeHoming1RA(c = 1, ch = 1)
+cube <- cubeHoming1RA(c = 1, ch = 0.95)
 
 # -------------------------
 # 2) Genotype-specific vector infectivity (user input)

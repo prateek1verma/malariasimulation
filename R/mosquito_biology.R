@@ -183,7 +183,8 @@ biting_effects_individual <- function(
     adult_species,
     mu,
     parameters,
-    timestep
+    timestep,
+    omega_by_genotype = NULL
   ) {
   # deal with mosquito infections
   target <- sample_bitset(susceptible_species, foim)
@@ -194,7 +195,31 @@ biting_effects_individual <- function(
   )
 
   # deal with mosquito deaths
-  died <- sample_bitset(adult_species, mu)
+  if (is.null(omega_by_genotype) || length(omega_by_genotype) == 0L) {
+    died <- sample_bitset(adult_species, mu)
+  } else if (length(omega_by_genotype) == 1L || is.null(variables$geno_id)) {
+    died <- sample_bitset(adult_species, mu * omega_by_genotype[[1]])
+  } else {
+    adult_genotypes <- variables$geno_id$get_values(adult_species)
+    died_idx <- integer(0)
+    for (g in seq_along(omega_by_genotype)) {
+      g_pos <- which(adult_genotypes == g)
+      if (length(g_pos) == 0L) {
+        next
+      }
+      died_g <- sample_bitset(
+        bitset_at(adult_species, g_pos),
+        mu * omega_by_genotype[[g]]
+      )$to_vector()
+      if (length(died_g) > 0L) {
+        died_idx <- c(died_idx, died_g)
+      }
+    }
+    died <- individual::Bitset$new(parameters$mosquito_limit)
+    if (length(died_idx) > 0L) {
+      died$insert(died_idx)
+    }
+  }
 
   events$mosquito_death$schedule(died, 0)
 }
@@ -345,6 +370,64 @@ cube_phi_vector <- function(cube, G) {
     stop("cube$phi entries must be in [0, 1]")
   }
   phi
+}
+
+cube_omega_vector <- function(cube, G, genotypesID = NULL) {
+  omega <- NULL
+  if (!is.null(cube)) {
+    omega <- cube$omega
+  }
+  if (is.null(omega)) {
+    return(rep(1, G))
+  }
+
+  if (is.null(genotypesID) && !is.null(cube)) {
+    genotypesID <- cube_genotype_info(cube)$genotypesID
+  }
+
+  if (length(omega) == 1L) {
+    out <- rep(as.numeric(omega[[1]]), G)
+    if (!is.null(genotypesID) && length(genotypesID) == G) {
+      names(out) <- genotypesID
+    }
+  } else {
+    nm <- names(omega)
+    if (is.null(nm) || anyNA(nm) || any(nm == "")) {
+      stop("cube$omega must be named with cube$genotypesID when length > 1")
+    }
+    if (anyDuplicated(nm)) {
+      dup <- unique(nm[duplicated(nm)])
+      stop(sprintf("cube$omega has duplicate names: %s", paste(dup, collapse = ", ")))
+    }
+    if (is.null(genotypesID)) {
+      stop("cube$omega requires genotype names from cube$genotypesID")
+    }
+    missing_names <- setdiff(genotypesID, nm)
+    if (length(missing_names) > 0) {
+      stop(sprintf(
+        "cube$omega is missing genotype names in cube$genotypesID: %s",
+        paste(missing_names, collapse = ", ")
+      ))
+    }
+    extra_names <- setdiff(nm, genotypesID)
+    if (length(extra_names) > 0) {
+      warning(sprintf(
+        "cube$omega has extra genotype names that will be ignored: %s",
+        paste(extra_names, collapse = ", ")
+      ))
+    }
+    out <- as.numeric(omega[genotypesID])
+    names(out) <- genotypesID
+  }
+
+  if (length(out) != G) {
+    stop("cube$omega must have length 1 or length(cube$genotypesID)")
+  }
+  if (any(!is.finite(out)) || any(out < 0)) {
+    stop("cube$omega entries must be finite and >= 0")
+  }
+
+  out
 }
 
 #' @title Calculate offspring genotype proportions and viability from cube

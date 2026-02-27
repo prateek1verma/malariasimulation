@@ -103,6 +103,7 @@ simulate_bites <- function(
     infectious_index <- variables$mosquito_state$get_index_of('Im')
     susceptible_index <- variables$mosquito_state$get_index_of('Sm')
     adult_index <- variables$mosquito_state$get_index_of('NonExistent')$not(TRUE)
+    omega_by_species <- vector("list", length(parameters$species))
     genotype_tracking <- !is.null(parameters$cube) && !is.null(variables$geno_id)
     if (vector_infectivity_active && !genotype_tracking) {
       stop("Internal error: genotype-specific vector_infectivity_g requires genotype tracking state")
@@ -253,6 +254,8 @@ simulate_bites <- function(
         female_geno_totals <- female_geno_totals + female_counts
         male_geno_totals <- male_geno_totals + male_counts
         mu_by_species[[s_i]] <- mu
+        omega_g <- cube_omega_vector(models[[s_i]]$cube, cube_info$G, cube_info$genotypesID)
+        omega_by_species[[s_i]] <- if (all(omega_g == 1)) NULL else omega_g
         female_totals_by_species[[s_i]] <- species_index$size()
         models[[s_i]]$genotype_state$last_V <- pgv$V
       }
@@ -266,6 +269,11 @@ simulate_bites <- function(
       
       # update the individual mosquitoes
       susceptible_species_index <- susceptible_index$copy()$and(species_index)
+      omega_for_species <- NULL
+      if (exists("omega_by_species", inherits = FALSE) &&
+          length(omega_by_species) >= s_i) {
+        omega_for_species <- omega_by_species[[s_i]]
+      }
       
       biting_effects_individual(
         variables,
@@ -276,7 +284,8 @@ simulate_bites <- function(
         species_index,
         mu,
         parameters,
-        timestep
+        timestep,
+        omega_by_genotype = omega_for_species
       )
     } else {
       adult_mosquito_model_update(
@@ -323,11 +332,20 @@ simulate_bites <- function(
         next
       }
       male_counts <- models[[s_i]]$genotype_state$male_counts
-      if (length(male_counts) == 1L) {
+      omega_by_genotype <- NULL
+      if (exists("omega_by_species", inherits = FALSE) &&
+          length(omega_by_species) >= s_i) {
+        omega_by_genotype <- omega_by_species[[s_i]]
+      }
+      if (length(male_counts) == 1L &&
+          (is.null(omega_by_genotype) || omega_by_genotype[[1]] == 1)) {
         # Keep the trivial cube case RNG-free and aligned with the implicit 1:1 sex ratio.
         male_counts[[1]] <- female_totals_by_species[[s_i]]
-      } else {
+      } else if (is.null(omega_by_genotype)) {
         death_prob <- min(mu_by_species[[s_i]], 1)
+        male_counts <- stats::rbinom(length(male_counts), size = male_counts, prob = 1 - death_prob)
+      } else {
+        death_prob <- pmin(mu_by_species[[s_i]] * as.numeric(omega_by_genotype), 1)
         male_counts <- stats::rbinom(length(male_counts), size = male_counts, prob = 1 - death_prob)
       }
       models[[s_i]]$genotype_state$male_counts <- male_counts

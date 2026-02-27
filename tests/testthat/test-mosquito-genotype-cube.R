@@ -380,3 +380,117 @@ test_that("vector_infectivity_g validates names, ranges, and hybrid-mode require
     "requires individual_mosquitoes=TRUE"
   )
 })
+
+test_that("cube$omega all ones is a strict no-op (including WT-only)", {
+  skip_if_not_installed("MGDrivE")
+
+  base_params <- malariasimulationGD::get_parameters(list(
+    individual_mosquitoes = TRUE,
+    human_population = 50,
+    total_M = 200,
+    init_foim = 0,
+    progress_bar = FALSE
+  ))
+  base_params <- malariasimulationGD::parameterise_total_M(base_params, base_params$total_M)
+
+  cube3 <- MGDrivE::cubeMendelian(gtype = c("AA", "Aa", "aa"))
+  params_cube3 <- base_params
+  params_cube3$cube <- cube3
+  params_cube3_omega <- params_cube3
+  params_cube3_omega$cube$omega <- c(AA = 1, Aa = 1, aa = 1)
+
+  set.seed(1301)
+  out_cube3 <- malariasimulationGD::run_resumable_simulation(30, parameters = params_cube3)
+  set.seed(1301)
+  out_cube3_omega <- malariasimulationGD::run_resumable_simulation(30, parameters = params_cube3_omega)
+  expect_identical(out_cube3_omega$data, out_cube3$data)
+  expect_identical(out_cube3_omega$mosquito_genotypes$female, out_cube3$mosquito_genotypes$female)
+  expect_identical(out_cube3_omega$mosquito_genotypes$male, out_cube3$mosquito_genotypes$male)
+
+  cube1 <- MGDrivE::cubeMendelian(gtype = c("AA"))
+  params_cube1 <- base_params
+  params_cube1$cube <- cube1
+  params_cube1_omega <- params_cube1
+  params_cube1_omega$cube$omega <- c(AA = 1)
+
+  set.seed(1302)
+  out_cube1 <- malariasimulationGD::run_resumable_simulation(30, parameters = params_cube1)
+  set.seed(1302)
+  out_cube1_omega <- malariasimulationGD::run_resumable_simulation(30, parameters = params_cube1_omega)
+  expect_identical(out_cube1_omega$data, out_cube1$data)
+})
+
+test_that("cube$omega > 1 for aa reduces aa adult share under repeated aa releases", {
+  skip_if_not_installed("MGDrivE")
+
+  params <- malariasimulationGD::get_parameters(list(
+    individual_mosquitoes = TRUE,
+    human_population = 80,
+    total_M = 300,
+    init_foim = 0,
+    progress_bar = FALSE
+  ))
+  params <- malariasimulationGD::parameterise_total_M(params, params$total_M)
+
+  cube3 <- MGDrivE::cubeMendelian(gtype = c("AA", "Aa", "aa"))
+  cube3$releaseType <- "aa"
+  params$cube <- cube3
+  params <- malariasimulationGD::set_releases(params, list(
+    releasesStart = 10,
+    releasesNumber = 10,
+    releasesInterval = 7,
+    releaseCount = 200,
+    releaseSex = "M"
+  ))
+
+  params_omega <- params
+  params_omega$cube$omega <- c(AA = 1, Aa = 1, aa = 2)
+
+  timesteps <- 160
+
+  set.seed(1303)
+  out_base <- malariasimulationGD::run_resumable_simulation(timesteps, parameters = params)
+  set.seed(1303)
+  out_omega <- malariasimulationGD::run_resumable_simulation(timesteps, parameters = params_omega)
+
+  total_adults_base <- out_base$mosquito_genotypes$total_adults
+  total_adults_omega <- out_omega$mosquito_genotypes$total_adults
+  aa_total_base <- out_base$mosquito_genotypes$female[, "aa"] + out_base$mosquito_genotypes$male[, "aa"]
+  aa_total_omega <- out_omega$mosquito_genotypes$female[, "aa"] + out_omega$mosquito_genotypes$male[, "aa"]
+
+  aa_frac_base <- ifelse(total_adults_base > 0, aa_total_base / total_adults_base, NA_real_)
+  aa_frac_omega <- ifelse(total_adults_omega > 0, aa_total_omega / total_adults_omega, NA_real_)
+  tail_idx <- seq.int(max(1L, timesteps - 29L), timesteps)
+
+  expect_true(any(!is.na(aa_frac_base[tail_idx])))
+  expect_true(any(!is.na(aa_frac_omega[tail_idx])))
+  expect_lt(
+    mean(aa_frac_omega[tail_idx], na.rm = TRUE),
+    mean(aa_frac_base[tail_idx], na.rm = TRUE)
+  )
+})
+
+test_that("cube$omega validates genotype names and values", {
+  skip_if_not_installed("MGDrivE")
+
+  params <- malariasimulationGD::get_parameters(list(
+    individual_mosquitoes = TRUE,
+    progress_bar = FALSE
+  ))
+  cube3 <- MGDrivE::cubeMendelian(gtype = c("AA", "Aa", "aa"))
+  params$cube <- cube3
+
+  params_missing <- params
+  params_missing$cube$omega <- c(AA = 1, Aa = 1)
+  expect_error(
+    malariasimulationGD::run_resumable_simulation(1, parameters = params_missing),
+    "missing genotype names.*aa"
+  )
+
+  params_negative <- params
+  params_negative$cube$omega <- c(AA = 1, Aa = -0.1, aa = 1)
+  expect_error(
+    malariasimulationGD::run_resumable_simulation(1, parameters = params_negative),
+    "entries must be finite and >= 0"
+  )
+})
