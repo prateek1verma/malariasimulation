@@ -332,6 +332,10 @@
 #' rates; default = TRUE
 #' * cube - optional MGDrivE-style inheritance cube for adult mosquito genotype
 #' tracking in hybrid mode; default = NULL
+#' * vector_infectivity_g - optional infectiousness scaling of infectious female
+#' mosquitoes by genotype, applied at the EIR (infectious bite) stage (distinct
+#' from the human-side per-bite infection probability used inside
+#' \code{simulate_infection()}); default = NULL
 #' * releases - optional mosquito genotype release configuration list (see
 #' \code{\link{set_releases}}); default = NULL
 #' * debug_genotypes - print compact debug tracing for mosquito genotype release /
@@ -512,6 +516,7 @@ get_parameters <- function(overrides = list(), parasite = "falciparum") {
       mosquito_limit   = 100 * 1000,
       individual_mosquitoes = FALSE,
       cube = NULL,
+      vector_infectivity_g = NULL,
       releases = NULL,
       debug_genotypes = FALSE,
       debug_genotype_timesteps = NULL,
@@ -548,6 +553,152 @@ get_parameters <- function(overrides = list(), parasite = "falciparum") {
   }
   
   parameters
+}
+
+#' @noRd
+normalize_vector_infectivity_g_entry <- function(x, required_genotypes, label) {
+  if (!is.atomic(x) || !is.numeric(x)) {
+    stop(sprintf("%s must be a named numeric vector", label))
+  }
+
+  nm <- names(x)
+  if (is.null(nm) || anyNA(nm) || any(nm == "")) {
+    stop(sprintf(
+      "%s must include genotype names matching parameters$cube$genotypesID: %s",
+      label,
+      paste(required_genotypes, collapse = ", ")
+    ))
+  }
+  if (anyDuplicated(nm)) {
+    dup <- unique(nm[duplicated(nm)])
+    stop(sprintf(
+      "%s has duplicate names: %s",
+      label,
+      paste(dup, collapse = ", ")
+    ))
+  }
+
+  missing_names <- setdiff(required_genotypes, nm)
+  if (length(missing_names) > 0) {
+    stop(sprintf(
+      "%s is missing genotype names required by parameters$cube$genotypesID: %s (required: %s)",
+      label,
+      paste(missing_names, collapse = ", "),
+      paste(required_genotypes, collapse = ", ")
+    ))
+  }
+
+  extra_names <- setdiff(nm, required_genotypes)
+  if (length(extra_names) > 0) {
+    warning(sprintf(
+      "%s has extra genotype names that will be ignored: %s",
+      label,
+      paste(extra_names, collapse = ", ")
+    ))
+  }
+
+  out <- as.numeric(x[required_genotypes])
+  names(out) <- required_genotypes
+  if (any(!is.finite(out))) {
+    stop(sprintf("%s values must be numeric and finite", label))
+  }
+  if (any(out < 0 | out > 1)) {
+    stop(sprintf("%s values must be in [0, 1]", label))
+  }
+
+  out
+}
+
+#' @noRd
+validate_vector_infectivity_g_parameters <- function(parameters) {
+  parameters$vector_infectivity_g_by_species <- NULL
+
+  vi <- parameters$vector_infectivity_g
+  if (is.null(vi)) {
+    return(parameters)
+  }
+
+  if (is.null(parameters$cube)) {
+    warning("parameters$vector_infectivity_g ignored because parameters$cube=NULL")
+    return(parameters)
+  }
+
+  if (!isTRUE(parameters$individual_mosquitoes)) {
+    stop("Genotype-specific vector_infectivity_g currently requires individual_mosquitoes=TRUE.")
+  }
+
+  cube_info <- cube_genotype_info(parameters$cube)
+  species_names <- as.character(parameters$species)
+  resolved <- vector("list", length(species_names))
+  names(resolved) <- species_names
+
+  if (is.list(vi)) {
+    vi_names <- names(vi)
+    if (is.null(vi_names) || anyNA(vi_names) || any(vi_names == "")) {
+      stop(sprintf(
+        "parameters$vector_infectivity_g list form must be named by species: %s",
+        paste(species_names, collapse = ", ")
+      ))
+    }
+    if (anyDuplicated(vi_names)) {
+      dup <- unique(vi_names[duplicated(vi_names)])
+      stop(sprintf(
+        "parameters$vector_infectivity_g has duplicate species names: %s",
+        paste(dup, collapse = ", ")
+      ))
+    }
+
+    missing_species <- setdiff(species_names, vi_names)
+    if (length(missing_species) > 0) {
+      stop(sprintf(
+        "parameters$vector_infectivity_g is missing species entries: %s (required species: %s)",
+        paste(missing_species, collapse = ", "),
+        paste(species_names, collapse = ", ")
+      ))
+    }
+
+    extra_species <- setdiff(vi_names, species_names)
+    if (length(extra_species) > 0) {
+      warning(sprintf(
+        "parameters$vector_infectivity_g has extra species entries that will be ignored: %s",
+        paste(extra_species, collapse = ", ")
+      ))
+    }
+
+    for (sp in species_names) {
+      resolved[[sp]] <- normalize_vector_infectivity_g_entry(
+        vi[[sp]],
+        cube_info$genotypesID,
+        sprintf("parameters$vector_infectivity_g$%s", sp)
+      )
+    }
+  } else {
+    base_weights <- normalize_vector_infectivity_g_entry(
+      vi,
+      cube_info$genotypesID,
+      "parameters$vector_infectivity_g"
+    )
+    for (sp in species_names) {
+      resolved[[sp]] <- base_weights
+    }
+  }
+
+  if (cube_info$G == 1L && all(vapply(resolved, function(x) x[[1]] == 1, logical(1)))) {
+    # Preserve strict backwards compatibility for the trivial WT-only no-op case.
+    return(parameters)
+  }
+
+  parameters$vector_infectivity_g_by_species <- resolved
+  parameters
+}
+
+#' @noRd
+vector_infectivity_g_weights_for_species <- function(parameters, species_name) {
+  by_species <- parameters$vector_infectivity_g_by_species
+  if (is.null(by_species)) {
+    return(NULL)
+  }
+  by_species[[species_name]]
 }
 
 #' @title Parameterise total_M and carrying capacity for mosquitos from EIR

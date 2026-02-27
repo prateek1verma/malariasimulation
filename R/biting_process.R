@@ -80,6 +80,7 @@ simulate_bites <- function(
   ) {
   bitten_humans <- individual::Bitset$new(parameters$human_population)
   n_bites_per_person <- numeric(0)
+  vector_infectivity_active <- !is.null(parameters$vector_infectivity_g_by_species)
   
   human_infectivity <- variables$infectivity$get_values()
   if (parameters$tbv) {
@@ -103,6 +104,9 @@ simulate_bites <- function(
     susceptible_index <- variables$mosquito_state$get_index_of('Sm')
     adult_index <- variables$mosquito_state$get_index_of('NonExistent')$not(TRUE)
     genotype_tracking <- !is.null(parameters$cube) && !is.null(variables$geno_id)
+    if (vector_infectivity_active && !genotype_tracking) {
+      stop("Internal error: genotype-specific vector_infectivity_g requires genotype tracking state")
+    }
     if (genotype_tracking) {
       cube_info <- cube_genotype_info(parameters$cube)
       female_geno_totals <- rep.int(0, cube_info$G)
@@ -110,6 +114,7 @@ simulate_bites <- function(
       mu_by_species <- rep(0, length(parameters$species))
       female_totals_by_species <- rep(0L, length(parameters$species))
       V_by_species <- rep(1, length(parameters$species))
+      infectious_geno_totals <- rep.int(0, cube_info$G)
     }
   }
   if (parameters$individual_mosquitoes && genotype_tracking && genotype_debug_enabled(parameters, timestep)) {
@@ -142,14 +147,43 @@ simulate_bites <- function(
       species_index <- variables$species$get_index_of(
         parameters$species[[s_i]]
       )$and(adult_index)
-      n_infectious <- calculate_infectious_individual(
-        s_i,
-        variables,
-        infectious_index,
-        adult_index,
-        species_index,
-        parameters
-      )
+      vector_infectivity_weights <- NULL
+      if (vector_infectivity_active) {
+        vector_infectivity_weights <- vector_infectivity_g_weights_for_species(
+          parameters,
+          species_name
+        )
+      }
+      if (is.null(vector_infectivity_weights)) {
+        n_infectious <- calculate_infectious_individual(
+          s_i,
+          variables,
+          infectious_index,
+          adult_index,
+          species_index,
+          parameters
+        )
+      } else {
+        infectious_counts_g <- calculate_infectious_individual_genotype_counts(
+          variables,
+          infectious_index,
+          species_index,
+          cube_info$G
+        )
+        n_infectious_total <- sum(infectious_counts_g)
+        n_infectious <- sum(infectious_counts_g * vector_infectivity_weights)
+        infectious_geno_totals <- infectious_geno_totals + infectious_counts_g
+        renderer$render(
+          paste0("infectivity_weighted_I_", species_name),
+          n_infectious,
+          timestep
+        )
+        renderer$render(
+          paste0("vector_infectivity_mean_", species_name),
+          if (n_infectious_total > 0) n_infectious / n_infectious_total else NA_real_,
+          timestep
+        )
+      }
     } else {
       n_infectious <- calculate_infectious_compartmental(solver_states)
     }
@@ -255,6 +289,11 @@ simulate_bites <- function(
     }
   }
 
+  if (parameters$individual_mosquitoes && vector_infectivity_active &&
+      !is.null(parameters$mosquito_infectious_genotype_history)) {
+    parameters$mosquito_infectious_genotype_history[timestep, ] <- infectious_geno_totals
+  }
+
   if (parameters$individual_mosquitoes && genotype_tracking) {
     history <- parameters$mosquito_genotype_history
     if (!is.null(history)) {
@@ -326,20 +365,52 @@ effective_biting_rates <- function(a, .pi, p_bitten) {
 calculate_infectious <- function(species, solvers, variables, parameters) {
   if (parameters$individual_mosquitoes) {
     adult_index <- variables$mosquito_state$get_index_of('NonExistent')$not(TRUE)
+    species_name <- parameters$species[[species]]
+    species_index <- variables$species$get_index_of(
+      species_name
+    )$and(adult_index)
+    vector_infectivity_weights <- vector_infectivity_g_weights_for_species(
+      parameters,
+      species_name
+    )
+    if (!is.null(vector_infectivity_weights)) {
+      if (is.null(parameters$cube) || is.null(variables$geno_id)) {
+        stop("Internal error: genotype-specific vector_infectivity_g requires genotype tracking state")
+      }
+      cube_info <- cube_genotype_info(parameters$cube)
+      counts_g <- calculate_infectious_individual_genotype_counts(
+        variables,
+        variables$mosquito_state$get_index_of('Im'),
+        species_index,
+        cube_info$G
+      )
+      return(sum(counts_g * vector_infectivity_weights))
+    }
     return(
       calculate_infectious_individual(
         species,
         variables,
         variables$mosquito_state$get_index_of('Im'),
         adult_index,
-        variables$species$get_index_of(
-          parameters$species[[species]]
-        )$and(adult_index),
+        species_index,
         parameters
       )
     )
   }
   calculate_infectious_compartmental(solvers[[species]]$get_states())
+}
+
+calculate_infectious_individual_genotype_counts <- function(
+  variables,
+  infectious_index,
+  species_index,
+  G
+  ) {
+  infectious_species_index <- infectious_index$copy()$and(species_index)
+  if (infectious_species_index$size() == 0) {
+    return(rep.int(0, G))
+  }
+  tabulate(variables$geno_id$get_values(infectious_species_index), nbins = G)
 }
 
 calculate_infectious_individual <- function(

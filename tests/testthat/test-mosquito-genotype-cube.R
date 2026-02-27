@@ -219,3 +219,164 @@ test_that("sterile tau (all zero) yields zero egg input and aquatic collapse", {
   expect_lt(tail(aquatic_total, 1), aquatic_total[1])
   expect_lt(tail(aquatic_total, 1) / aquatic_total[1], 0.01)
 })
+
+test_that("vector_infectivity_g is ignored with warning when cube is NULL", {
+  params <- malariasimulationGD::get_parameters(list(
+    individual_mosquitoes = TRUE,
+    human_population = 40,
+    total_M = 120,
+    init_foim = 0,
+    progress_bar = FALSE
+  ))
+  params <- malariasimulationGD::parameterise_total_M(params, params$total_M)
+
+  timesteps <- 15
+
+  set.seed(1201)
+  baseline <- malariasimulationGD::run_resumable_simulation(timesteps, parameters = params)
+
+  params_vi <- params
+  params_vi$vector_infectivity_g <- c(AA = 0.5)
+
+  expect_warning(
+    {
+      set.seed(1201)
+      ignored <- malariasimulationGD::run_resumable_simulation(timesteps, parameters = params_vi)
+    },
+    "vector_infectivity_g ignored because .*cube=NULL"
+  )
+
+  expect_identical(ignored$data, baseline$data)
+})
+
+test_that("WT-only vector_infectivity_g=1 is a strict no-op", {
+  skip_if_not_installed("MGDrivE")
+
+  params <- malariasimulationGD::get_parameters(list(
+    individual_mosquitoes = TRUE,
+    human_population = 50,
+    total_M = 200,
+    init_foim = 0,
+    progress_bar = FALSE
+  ))
+  params <- malariasimulationGD::parameterise_total_M(params, params$total_M)
+  params$cube <- MGDrivE::cubeMendelian(gtype = c("AA"))
+
+  params_vi <- params
+  params_vi$vector_infectivity_g <- c(AA = 1)
+
+  set.seed(1202)
+  base <- malariasimulationGD::run_resumable_simulation(20, parameters = params)
+  set.seed(1202)
+  weighted <- malariasimulationGD::run_resumable_simulation(20, parameters = params_vi)
+
+  expect_identical(weighted$data, base$data)
+  expect_false("infectivity_weighted_I_gamb" %in% names(weighted$data))
+  expect_false("vector_infectivity_mean_gamb" %in% names(weighted$data))
+  expect_null(attr(weighted$data, "mosquito_infectious_genotype_counts"))
+})
+
+test_that("vector_infectivity_g reduces EIR when low-infectivity genotype rises among infectious females", {
+  skip_if_not_installed("MGDrivE")
+
+  params <- malariasimulationGD::get_parameters(list(
+    individual_mosquitoes = TRUE,
+    human_population = 80,
+    total_M = 300,
+    init_foim = 0,
+    progress_bar = FALSE
+  ))
+  params <- malariasimulationGD::parameterise_total_M(params, params$total_M)
+
+  cube3 <- MGDrivE::cubeMendelian(gtype = c("AA", "Aa", "aa"))
+  cube3$releaseType <- "aa"
+  params$cube <- cube3
+  params <- malariasimulationGD::set_releases(params, list(
+    releasesStart = 10,
+    releasesNumber = 10,
+    releasesInterval = 7,
+    releaseCount = 200,
+    releaseSex = "M"
+  ))
+
+  params_all_one <- params
+  params_all_one$vector_infectivity_g <- c(AA = 1, Aa = 1, aa = 1)
+
+  params_aa_zero <- params
+  params_aa_zero$vector_infectivity_g <- list(
+    gamb = c(AA = 1, Aa = 1, aa = 0)
+  )
+
+  timesteps <- 160
+
+  set.seed(1203)
+  out_all_one <- malariasimulationGD::run_resumable_simulation(timesteps, parameters = params_all_one)
+  set.seed(1203)
+  out_aa_zero <- malariasimulationGD::run_resumable_simulation(timesteps, parameters = params_aa_zero)
+
+  df_a <- out_all_one$data
+  df_b <- out_aa_zero$data
+
+  expect_true(all(c(
+    "infectivity_weighted_I_gamb",
+    "vector_infectivity_mean_gamb"
+  ) %in% names(df_a)))
+  expect_true(all(c(
+    "infectivity_weighted_I_gamb",
+    "vector_infectivity_mean_gamb"
+  ) %in% names(df_b)))
+
+  expect_equal(df_a$infectivity_weighted_I_gamb, df_a$Im_gamb_count, tolerance = 0)
+  infected_days_a <- df_a$Im_gamb_count > 0
+  expect_true(all(df_a$vector_infectivity_mean_gamb[infected_days_a] == 1))
+
+  tail_idx <- seq.int(max(1L, nrow(df_b) - 29L), nrow(df_b))
+  expect_true(any(!is.na(df_b$vector_infectivity_mean_gamb[tail_idx])))
+  expect_lt(
+    mean(df_b$vector_infectivity_mean_gamb[tail_idx], na.rm = TRUE),
+    mean(df_a$vector_infectivity_mean_gamb[tail_idx], na.rm = TRUE)
+  )
+  expect_lt(
+    mean(df_b$EIR_gamb[tail_idx], na.rm = TRUE),
+    mean(df_a$EIR_gamb[tail_idx], na.rm = TRUE)
+  )
+})
+
+test_that("vector_infectivity_g validates names, ranges, and hybrid-mode requirement", {
+  skip_if_not_installed("MGDrivE")
+
+  cube3 <- MGDrivE::cubeMendelian(gtype = c("AA", "Aa", "aa"))
+
+  params_missing <- malariasimulationGD::get_parameters(list(
+    individual_mosquitoes = TRUE,
+    progress_bar = FALSE
+  ))
+  params_missing$cube <- cube3
+  params_missing$vector_infectivity_g <- c(AA = 1, Aa = 1)
+  expect_error(
+    malariasimulationGD::run_resumable_simulation(1, parameters = params_missing),
+    "missing genotype names.*aa"
+  )
+
+  params_range <- malariasimulationGD::get_parameters(list(
+    individual_mosquitoes = TRUE,
+    progress_bar = FALSE
+  ))
+  params_range$cube <- cube3
+  params_range$vector_infectivity_g <- c(AA = 1, Aa = 1.2, aa = 0)
+  expect_error(
+    malariasimulationGD::run_resumable_simulation(1, parameters = params_range),
+    "values must be in \\[0, 1\\]"
+  )
+
+  params_compartmental <- malariasimulationGD::get_parameters(list(
+    individual_mosquitoes = FALSE,
+    progress_bar = FALSE
+  ))
+  params_compartmental$cube <- cube3
+  params_compartmental$vector_infectivity_g <- c(AA = 1, Aa = 1, aa = 0)
+  expect_error(
+    malariasimulationGD::run_resumable_simulation(1, parameters = params_compartmental),
+    "requires individual_mosquitoes=TRUE"
+  )
+})

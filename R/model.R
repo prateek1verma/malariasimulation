@@ -13,6 +13,9 @@
 #'  * mu: the death rate of adult mosquitoes (per species)
 #'  * EIR: the Entomological Inoculation Rate (per timestep, per species, over
 #'  the whole population)
+#'  * infectivity_weighted_I_* and vector_infectivity_mean_*: optional
+#'  genotype-weighted infectious female mosquito count and mean mosquito
+#'  infectivity among infectious females when `vector_infectivity_g` is enabled
 #'  * n_bitten: number of humans bitten by an infectious mosquito
 #'  * n_treated: number of humans treated for clinical or severe malaria this timestep
 #'  * n_infections: number of humans who get an asymptomatic, clinical or severe malaria this timestep
@@ -103,7 +106,9 @@ run_simulation <- function(
 #' When `parameters$cube` is provided in hybrid mosquito mode, an additional
 #' `mosquito_genotypes` entry is returned containing per-timestep female and male
 #' adult genotype counts and the egg viability fraction `V`, and the same arrays
-#' are attached as attributes on `data`.
+#' are attached as attributes on `data`. When `vector_infectivity_g` is enabled
+#' and `debug_genotypes = TRUE`, `data` also carries a
+#' `mosquito_infectious_genotype_counts` attribute (timestep x genotype).
 #' @export
 run_resumable_simulation <- function(
     timesteps,
@@ -116,6 +121,7 @@ run_resumable_simulation <- function(
   if (is.null(parameters)) {
     parameters <- get_parameters()
   }
+  parameters <- validate_vector_infectivity_g_parameters(parameters)
   if (!is.null(parameters$releases) && is.null(parameters$releases_schedule)) {
     parameters <- set_releases(parameters, parameters$releases)
   }
@@ -164,6 +170,15 @@ run_resumable_simulation <- function(
       ncol = cube_info$G,
       dimnames = list(NULL, cube_info$genotypesID)
     )
+    if (isTRUE(parameters$debug_genotypes) &&
+        !is.null(parameters$vector_infectivity_g_by_species)) {
+      parameters$mosquito_infectious_genotype_history <- matrix(
+        0,
+        nrow = timesteps,
+        ncol = cube_info$G,
+        dimnames = list(NULL, cube_info$genotypesID)
+      )
+    }
   }
   events <- create_events(parameters)
   initialise_events(events, variables, parameters)
@@ -226,6 +241,7 @@ run_resumable_simulation <- function(
   data <- renderer$to_dataframe()
   genotype_outputs <- NULL
   aquatic_genotype_outputs <- NULL
+  infectious_genotype_counts_output <- parameters$mosquito_infectious_genotype_history
   release_schedule_output <- parameters$releases_schedule
   if (!is.null(parameters$mosquito_genotype_history)) {
     genotype_outputs <- list(
@@ -266,6 +282,13 @@ run_resumable_simulation <- function(
       aquatic_genotype_outputs$L <- aquatic_genotype_outputs$L[keep, , drop = FALSE]
       aquatic_genotype_outputs$P <- aquatic_genotype_outputs$P[keep, , drop = FALSE]
     }
+    if (!is.null(infectious_genotype_counts_output)) {
+      infectious_genotype_counts_output <- infectious_genotype_counts_output[
+        -(1:initial_state$timesteps),
+        ,
+        drop = FALSE
+      ]
+    }
   }
   if (!is.null(genotype_outputs)) {
     attr(data, "mosquito_genotype_counts_female") <- genotype_outputs$female
@@ -277,6 +300,9 @@ run_resumable_simulation <- function(
     attr(data, "mosquito_aquatic_genotype_E") <- aquatic_genotype_outputs$E
     attr(data, "mosquito_aquatic_genotype_L") <- aquatic_genotype_outputs$L
     attr(data, "mosquito_aquatic_genotype_P") <- aquatic_genotype_outputs$P
+  }
+  if (!is.null(infectious_genotype_counts_output)) {
+    attr(data, "mosquito_infectious_genotype_counts") <- infectious_genotype_counts_output
   }
   if (!is.null(release_schedule_output)) {
     if (nrow(release_schedule_output) > 0 && "timestep" %in% names(data)) {
@@ -391,6 +417,7 @@ run_metapop_simulation <- function(
   if (is.null(correlations)) {
     correlations <- lapply(parameters, get_correlation_parameters)
   }
+  parameters <- lapply(parameters, validate_vector_infectivity_g_parameters)
   variables <- lapply(parameters, create_variables)
   events <- lapply(parameters, create_events)
   renderer <- lapply(parameters, function(.) individual::Render$new(timesteps))
