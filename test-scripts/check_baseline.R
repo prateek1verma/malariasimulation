@@ -240,3 +240,4 @@ mean_abs_check(out0, out_3, c("Pm_gamb_count","Im_gamb_count"), tail_n = 30, max
                labelA="baseline", labelB="3-genotype")
 cat("PASS: Low-count Pm/Im means within absolute tolerance.\n")
 cat("\nAll tests PASSED.\n")
+

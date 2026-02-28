@@ -31,3 +31,11 @@ test_that('Test age parameter function works', {
                      "_", age_limits[-1]-1+rep(offsets, each = 3))
   expect_in(expected, names(sim))
 })
+
+test_that("run_simulation works with default parameters", {
+  sim <- run_simulation(timesteps = 2)
+
+  expect_s3_class(sim, "data.frame")
+  expect_equal(nrow(sim), 2)
+  expect_true(all(c("timestep", "EIR_gamb", "FOIM_gamb") %in% names(sim)))
+})

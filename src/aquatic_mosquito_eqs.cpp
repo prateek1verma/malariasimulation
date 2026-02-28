@@ -23,7 +23,11 @@ integration_function_t create_eqs(AquaticMosquitoModel& model) {
     );
     
     auto beta = eggs_laid(model.beta, model.mum, model.f);
-    const bool scalar_aquatic = (x.size() == 3 && model.egg_proportions.size() <= 1);
+    // The compartmental adult solver passes the combined 6-state vector
+    // (E, L, P, Sm, Pm, Im) through the aquatic equations. That remains a
+    // scalar aquatic system; only the first three entries are aquatic states.
+    const bool scalar_aquatic =
+      ((x.size() == 3 || x.size() == 6) && model.egg_proportions.size() <= 1);
 
     if (scalar_aquatic) {
       auto n_larvae = x[get_idx(AquaticState::E)] + x[get_idx(AquaticState::L)];

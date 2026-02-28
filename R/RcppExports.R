@@ -108,3 +108,4 @@ bitset_index_cpp <- function(a, b) {
 fast_weighted_sample <- function(size, probs) {
     .Call(`_malariasimulationGD_fast_weighted_sample`, size, probs)
 }
+

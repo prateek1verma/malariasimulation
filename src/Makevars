@@ -1,2 +1,3 @@
 CXX_STD = CXX14
 PKG_CXXFLAGS = -I../inst/include/
+PKG_CPPFLAGS = -I../inst/include/ -include malariasimulation_types.h
