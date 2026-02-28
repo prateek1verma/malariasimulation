@@ -323,3 +323,4 @@ print(p_hum_compare)
 
 ggsave("test_omega_humans_compare.pdf", p_hum_compare, width = 9, height = 5.2, useDingbats = FALSE)
 ggsave("test_omega_humans_compare.png", p_hum_compare, width = 9, height = 5.2, dpi = 300)
+
