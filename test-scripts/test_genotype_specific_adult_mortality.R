@@ -253,8 +253,8 @@ p_compare <- ggplot(geno_long, aes(x = time, y = count, color = genotype, linety
   theme_paper +
   theme(legend.position = "top")
 
-ggsave("test_omega_genotype_adults_compare.pdf", p_compare, width = 12, height = 7, useDingbats = FALSE)
-ggsave("test_omega_genotype_adults_compare.png", p_compare, width = 12, height = 7, dpi = 300)
+# ggsave("test_omega_genotype_adults_compare.pdf", p_compare, width = 12, height = 7, useDingbats = FALSE)
+# ggsave("test_omega_genotype_adults_compare.png", p_compare, width = 12, height = 7, dpi = 300)
 
 cat("Wrote:\n",
     " - test_omega_genotype_adults_compare.(pdf|png)\n")
@@ -321,6 +321,6 @@ p_hum_compare <- ggplot(hum_long, aes(x = day, y = value, color = scenario)) +
 
 print(p_hum_compare)
 
-ggsave("test_omega_humans_compare.pdf", p_hum_compare, width = 9, height = 5.2, useDingbats = FALSE)
-ggsave("test_omega_humans_compare.png", p_hum_compare, width = 9, height = 5.2, dpi = 300)
+# ggsave("test_omega_humans_compare.pdf", p_hum_compare, width = 9, height = 5.2, useDingbats = FALSE)
+# ggsave("test_omega_humans_compare.png", p_hum_compare, width = 9, height = 5.2, dpi = 300)
 

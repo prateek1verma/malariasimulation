@@ -107,7 +107,7 @@ releases <- list(
   releasesNumber = 10L,
   releasesInterval = 7L,
   releaseCount = 200L,
-  releaseSex = "M"
+  releaseSex = "both"
 )
 
 params_3 <- set_releases(params_3, releases)
